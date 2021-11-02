@@ -336,6 +336,23 @@ namespace Microsoft.IdentityModel.Tokens
             return (key is SymmetricSecurityKey || (key is JsonWebKey jsonWebKey && jsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.Octet));
         }
 
+        internal static bool IsSupportedEcdsaKeyWrap(string algorithm, SecurityKey key)
+        {
+            if (key == null)
+                return false;
+
+            if (string.IsNullOrEmpty(algorithm))
+                return false;
+
+            if (!RsaEncryptionAlgorithms.Contains(algorithm))
+                return false;
+
+            if (key is ECDsaSecurityKey || (key is JsonWebKey rsaJsonWebKey && rsaJsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.EllipticCurve))
+                return key.KeySize >= 2048; //is it the same check (KeySize >= 2048) as RSA?
+
+            return false;
+        }
+
         internal static bool IsSupportedRsaAlgorithm(string algorithm, SecurityKey key)
         {
             return RsaSigningAlgorithms.Contains(algorithm)
