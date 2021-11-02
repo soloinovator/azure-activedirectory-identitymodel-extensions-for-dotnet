@@ -42,6 +42,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
 #if NET_CORE
         [PlatformSpecific(TestPlatforms.Windows)]
 #endif
+
         [Fact]
         public void AesGcmReferenceTest()
         {
@@ -144,6 +145,19 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             {
                 return TestId + ", " + Algorithm + ", " + EncryptionKey.KeyId + ", " + DecryptionKey.KeyId;
             }
+        }
+
+        [Fact]
+        public void ECDH_ESReferenceTest()
+        {
+            // Use the data in: public static class ECDH_ES
+            // To generate all the parts of required for creating the derived key and compare against reference.
+
+            // 1. Create Derived key using Alice's public key and Bob's Private key
+            // 2. Create Derived key using Bob's public key and Alice's Private key
+
+            // Generate Z, then compare
+            // Generate ConcatKDF, then compare
         }
 
         [Theory, MemberData(nameof(KeyWrapTheoryData))]

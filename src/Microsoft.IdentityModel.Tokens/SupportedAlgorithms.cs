@@ -38,6 +38,10 @@ namespace Microsoft.IdentityModel.Tokens
     /// </summary>
     internal static class SupportedAlgorithms
     {
+        //there might be a better place to put these values
+        private const int EcdsaMinKeySize = 256;
+        private const int RsaMinKeySize = 2048;
+
         internal static readonly ICollection<string> EcdsaSigningAlgorithms = new Collection<string>
         {
             SecurityAlgorithms.EcdsaSha256,
@@ -112,6 +116,13 @@ namespace Microsoft.IdentityModel.Tokens
             SecurityAlgorithms.HmacSha384Signature,
             SecurityAlgorithms.HmacSha512,
             SecurityAlgorithms.HmacSha512Signature
+        };
+
+        internal static readonly ICollection<string> EcdsaWrapAlgorithms = new Collection<string>
+        {
+            SecurityAlgorithms.EcdhEsA128kw,
+            SecurityAlgorithms.EcdhEsA192kw,
+            SecurityAlgorithms.EcdhEsA256kw,
         };
 
 #if NET461 || NET472 || NETSTANDARD2_0
@@ -317,7 +328,7 @@ namespace Microsoft.IdentityModel.Tokens
                 return false;
 
             if (key is RsaSecurityKey || key is X509SecurityKey || (key is JsonWebKey rsaJsonWebKey && rsaJsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.RSA))
-                return key.KeySize >= 2048;
+                return key.KeySize >= RsaMinKeySize;
 
             return false;
         }
@@ -334,6 +345,24 @@ namespace Microsoft.IdentityModel.Tokens
                 return false;
 
             return (key is SymmetricSecurityKey || (key is JsonWebKey jsonWebKey && jsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.Octet));
+        }
+
+        internal static bool IsSupportedEcdsaKeyWrap(string algorithm, SecurityKey key)
+        {
+            if (key == null)
+                return false;
+
+            if (string.IsNullOrEmpty(algorithm))
+                return false;
+
+            if (!EcdsaWrapAlgorithms.Contains(algorithm))
+                return false;
+
+            
+            if (key is ECDsaSecurityKey || (key is JsonWebKey rsaJsonWebKey && rsaJsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.EllipticCurve))
+                return key.KeySize >= EcdsaMinKeySize;
+
+            return false;
         }
 
         internal static bool IsSupportedRsaAlgorithm(string algorithm, SecurityKey key)
