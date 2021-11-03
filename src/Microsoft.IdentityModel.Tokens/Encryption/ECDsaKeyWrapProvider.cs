@@ -59,6 +59,7 @@ namespace Microsoft.IdentityModel.Tokens
             if (string.IsNullOrEmpty(algorithm))
                 throw LogHelper.LogArgumentNullException(nameof(algorithm));
 
+            //do we need to check if key is ECDsaKey?
             Algorithm = algorithm;
             Key = key;
             _willUnwrap = willUnwrap;

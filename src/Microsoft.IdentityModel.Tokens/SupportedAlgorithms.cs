@@ -114,6 +114,12 @@ namespace Microsoft.IdentityModel.Tokens
             SecurityAlgorithms.HmacSha512Signature
         };
 
+        //TODO: what algorithms are supported?
+        internal static readonly ICollection<string> EcdsaWrapAlgorithms = new Collection<string>
+        {
+            SecurityAlgorithms.Aes128KW
+        };
+
 #if NET461 || NET472 || NETSTANDARD2_0
         /// <summary>
         /// Creating a Signature requires the use of a <see cref="HashAlgorithm"/>.
@@ -344,7 +350,7 @@ namespace Microsoft.IdentityModel.Tokens
             if (string.IsNullOrEmpty(algorithm))
                 return false;
 
-            if (!RsaEncryptionAlgorithms.Contains(algorithm))
+            if (!EcdsaWrapAlgorithms.Contains(algorithm))
                 return false;
 
             if (key is ECDsaSecurityKey || (key is JsonWebKey rsaJsonWebKey && rsaJsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.EllipticCurve))
