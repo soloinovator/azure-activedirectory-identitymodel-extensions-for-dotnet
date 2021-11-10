@@ -119,6 +119,11 @@ namespace Microsoft.IdentityModel.Tokens
         internal const string DefaultAsymmetricKeyWrapAlgorithm = RsaOaepKeyWrap;
         internal const string DefaultSymmetricEncryptionAlgorithm = Aes128CbcHmacSha256;
 
+        // See: https://datatracker.ietf.org/doc/html/rfc7518#section-4.6
+        public const string EcdhEsA128kw = "ECDH-ES+A128KW";
+        public const string EcdhEsA192kw = "ECDH-ES+A192KW";
+        public const string EcdhEsA256kw = "ECDH-ES+A256KW";
+
 #pragma warning restore 1591
     }
 }

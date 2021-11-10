@@ -38,6 +38,10 @@ namespace Microsoft.IdentityModel.Tokens
     /// </summary>
     internal static class SupportedAlgorithms
     {
+        //there might be a better place to put these values
+        private const int EcdsaMinKeySize = 256;
+        private const int RsaMinKeySize = 2048;
+
         internal static readonly ICollection<string> EcdsaSigningAlgorithms = new Collection<string>
         {
             SecurityAlgorithms.EcdsaSha256,
@@ -114,10 +118,11 @@ namespace Microsoft.IdentityModel.Tokens
             SecurityAlgorithms.HmacSha512Signature
         };
 
-        //TODO: what algorithms are supported?
         internal static readonly ICollection<string> EcdsaWrapAlgorithms = new Collection<string>
         {
-            SecurityAlgorithms.Aes128KW
+            SecurityAlgorithms.EcdhEsA128kw,
+            SecurityAlgorithms.EcdhEsA192kw,
+            SecurityAlgorithms.EcdhEsA256kw,
         };
 
 #if NET461 || NET472 || NETSTANDARD2_0
@@ -323,7 +328,7 @@ namespace Microsoft.IdentityModel.Tokens
                 return false;
 
             if (key is RsaSecurityKey || key is X509SecurityKey || (key is JsonWebKey rsaJsonWebKey && rsaJsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.RSA))
-                return key.KeySize >= 2048;
+                return key.KeySize >= RsaMinKeySize;
 
             return false;
         }
@@ -353,8 +358,11 @@ namespace Microsoft.IdentityModel.Tokens
             if (!EcdsaWrapAlgorithms.Contains(algorithm))
                 return false;
 
+            
             if (key is ECDsaSecurityKey || (key is JsonWebKey rsaJsonWebKey && rsaJsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.EllipticCurve))
-                return key.KeySize >= 2048; //is it the same check (KeySize >= 2048) as RSA?
+                return key.KeySize >= EcdsaMinKeySize;
+
+            // check if curve is in approved curves (P-256, P-384, or P-521) - only these 3 
 
             return false;
         }
