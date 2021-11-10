@@ -51,7 +51,7 @@ namespace Microsoft.IdentityModel.Tokens
         /// <exception cref="ArgumentException">If <see cref="SecurityKey"/> and algorithm pair are not supported.</exception>
         /// <exception cref="NotSupportedException">Failed to create Ecdsa algorithm with provided key and algorithm.</exception>
         /// </summary>
-        public EcdsaKeyWrapProvider(SecurityKey key, string algorithm, bool willUnwrap)
+        public EcdsaKeyWrapProvider(SecurityKey key, string algorithm, bool willUnwrap) //should be getting their public key, our private, curve
         {
             if (key == null)
                 throw LogHelper.LogArgumentNullException(nameof(key));
@@ -59,7 +59,6 @@ namespace Microsoft.IdentityModel.Tokens
             if (string.IsNullOrEmpty(algorithm))
                 throw LogHelper.LogArgumentNullException(nameof(algorithm));
 
-            //do we need to check if key is ECDsaKey?
             Algorithm = algorithm;
             Key = key;
             _willUnwrap = willUnwrap;
