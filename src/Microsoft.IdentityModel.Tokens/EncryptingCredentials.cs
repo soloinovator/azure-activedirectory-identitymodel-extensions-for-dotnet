@@ -31,6 +31,7 @@ using Microsoft.IdentityModel.Logging;
 
 namespace Microsoft.IdentityModel.Tokens
 {
+    //todo: 
     /// <summary>
     /// A class for properties that are used for token encryption.
     /// </summary>
