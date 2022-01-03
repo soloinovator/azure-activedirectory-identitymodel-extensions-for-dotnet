@@ -30,6 +30,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using Microsoft.IdentityModel.Protocols.Exceptions;
 using Microsoft.IdentityModel.TestUtils;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -269,7 +270,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
             // get configuration with unsuccessful HTTP response status code
             configManager = new ConfigurationManager<OpenIdConnectConfiguration>("https://httpstat.us/429", new OpenIdConnectConfigurationRetriever());
-            ee = new ExpectedException(typeof(InvalidOperationException), "IDX20803:", typeof(IOException));
+            ee = new ExpectedException(typeof(InvalidOperationException), "IDX20803:", typeof(GetConfigurationException));
             try
             {
                 configuration = configManager.GetConfigurationAsync().Result;

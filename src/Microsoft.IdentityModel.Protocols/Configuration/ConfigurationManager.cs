@@ -26,11 +26,12 @@
 //------------------------------------------------------------------------------
 
 using System;
-using System.Diagnostics.Contracts;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Logging;
+using Microsoft.IdentityModel.Protocols.Exceptions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Microsoft.IdentityModel.Protocols
@@ -147,7 +148,16 @@ namespace Microsoft.IdentityModel.Protocols
                     {
                         _syncAfter = DateTimeUtil.Add(now.UtcDateTime, AutomaticRefreshInterval < RefreshInterval ? AutomaticRefreshInterval : RefreshInterval);
                         if (_currentConfiguration == null) // Throw an exception if there's no configuration to return.
-                            throw LogHelper.LogExceptionMessage(new InvalidOperationException(LogHelper.FormatInvariant(LogMessages.IDX20803, (MetadataAddress ?? "null")), ex));
+                        {
+                            if ((ex?.Data.Contains(HttpDocumentRetriever.StatusCode) ?? false) && (ex?.Data.Contains(HttpDocumentRetriever.ResponseContent) ?? false))
+                            {
+                                HttpStatusCode statusCode = (HttpStatusCode)ex.Data[HttpDocumentRetriever.StatusCode];
+                                string resposneContent = (string)ex.Data[HttpDocumentRetriever.ResponseContent];
+                                throw LogHelper.LogExceptionMessage(new InvalidOperationException(LogHelper.FormatInvariant(LogMessages.IDX20803, (MetadataAddress ?? "null")), GetConfigurationException.CreateGetOidcConfigurationException(statusCode, resposneContent)));
+                            }
+                            else
+                                throw LogHelper.LogExceptionMessage(new InvalidOperationException(LogHelper.FormatInvariant(LogMessages.IDX20803, (MetadataAddress ?? "null")), ex));
+                        }
                         else
                             LogHelper.LogExceptionMessage(new InvalidOperationException(LogHelper.FormatInvariant(LogMessages.IDX20806, (MetadataAddress ?? "null")), ex));
                     }

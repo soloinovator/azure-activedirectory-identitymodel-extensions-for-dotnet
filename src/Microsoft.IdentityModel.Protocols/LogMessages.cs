@@ -52,6 +52,9 @@ namespace Microsoft.IdentityModel.Protocols
         internal const string IDX20807 = "IDX20807: Unable to retrieve document from: '{0}'. HttpResponseMessage: '{1}', HttpResponseMessage.Content: '{2}'.";
         internal const string IDX20808 = "IDX20808: Network error occurred. Status code: '{0}'. \nResponse content: '{1}'. \nAttempting to retrieve document again from: '{2}'.";
         internal const string IDX20809 = "IDX20809: Unable to retrieve document from: '{0}'. Status code: '{1}'. \nResponse content: '{2}'.";
+        internal const string IDX20810 = "IDX20810: Unable to retrieve configuration. Status code: '{0}'.";
+        internal const string IDX20811 = "IDX20811: Caught an error when retrieving the configuration: '{0}', errorCodes: '{1}', correlationId: '{2}', errorMessage: '{3}', errorUri: '{4}', statusCode: '{5}', rawErrorString: '{6}'.";
+        internal const string IDX20812 = "IDX20812: Unable to parse the error when retrieving the configuration.The details returned was '{0}', Exception: '{1}'.";
 
 #pragma warning restore 1591
     }
