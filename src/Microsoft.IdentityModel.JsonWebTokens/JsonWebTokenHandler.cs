@@ -27,7 +27,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -1008,9 +1010,9 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 }
                 catch (Exception ex)
                 {
-                    // Keep going with the validation as the TokenValidationParameters may have the issuer and signing key set
-                    // directly on them.
-                    LogHelper.LogInformation(LogHelper.FormatInvariant(TokenLogMessages.IDX10261, validationParameters.ConfigurationManager.MetadataAddress, ex.ToString()));
+                    // The exception is not re-thrown as the TokenValidationParameters may have the issuer and signing key set
+                    // directly on them, allowing the library to continue with token validation.
+                    LogHelper.LogWarning(LogHelper.FormatInvariant(TokenLogMessages.IDX10261, validationParameters.ConfigurationManager.MetadataAddress, ex.ToString()));
                 }
             }
 
@@ -1019,53 +1021,44 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             {
                 if (tokenValidationResult.IsValid)
                 {
-                    // Set current configuration as LKG if it exists.
-                    if (currentConfiguration != null && currentConfiguration != validationParameters.ConfigurationManager.LastKnownGoodConfiguration)
+                    // Set current configuration as LKG if it exists and has not already been set as the LKG.
+                    if (currentConfiguration != null && !ReferenceEquals(currentConfiguration, validationParameters.ConfigurationManager.LastKnownGoodConfiguration))
                         validationParameters.ConfigurationManager.LastKnownGoodConfiguration = currentConfiguration;
 
                     return tokenValidationResult;
                 }
                 // using 'GetType()' instead of 'is' as SecurityTokenUnableToValidException (and others) extend SecurityTokenInvalidSignatureException
                 // we want to make sure that the clause for SecurityTokenUnableToValidateException is hit so that the ValidationFailure is checked
-                else if (tokenValidationResult.Exception.GetType().Equals(typeof(SecurityTokenInvalidSignatureException))
-                   || tokenValidationResult.Exception is SecurityTokenInvalidSigningKeyException
-                   || tokenValidationResult.Exception is SecurityTokenInvalidIssuerException
-                   || (tokenValidationResult.Exception is SecurityTokenUnableToValidateException
-                   // we should not try to revalidate with the LKG or request a refresh if the token has an invalid lifetime
-                   && (tokenValidationResult.Exception as SecurityTokenUnableToValidateException).ValidationFailure != ValidationFailure.InvalidLifetime)
-                   || tokenValidationResult.Exception is SecurityTokenSignatureKeyNotFoundException)
+                else if (TokenUtilities.IsRecoverableException(tokenValidationResult.Exception))
                 {
-                    if (validationParameters.ConfigurationManager.UseLastKnownGoodConfiguration
-                        && validationParameters.ConfigurationManager.LastKnownGoodConfiguration != null
-                        && validationParameters.ConfigurationManager.LastKnownGoodConfiguration != currentConfiguration)
+                    if (TokenUtilities.IsRecoverableConfiguration(validationParameters, currentConfiguration, out currentConfiguration))
                     {
-                        // Inform the user that the LKG is expired.
-                        if (!validationParameters.ConfigurationManager.IsLastKnownGoodValid)
-                            LogHelper.LogInformation(TokenLogMessages.IDX10263);
-                        else
-                        {
-                            currentConfiguration = validationParameters.ConfigurationManager.LastKnownGoodConfiguration;
-                            tokenValidationResult = decryptedJwt != null ? ValidateJWE(outerToken, decryptedJwt, validationParameters, currentConfiguration) : ValidateJWS(token, validationParameters, currentConfiguration); ;
+                        tokenValidationResult = decryptedJwt != null ? ValidateJWE(outerToken, decryptedJwt, validationParameters, currentConfiguration) : ValidateJWS(token, validationParameters, currentConfiguration);
 
-                            if (tokenValidationResult.IsValid)
-                                return tokenValidationResult;
-                        }
+                        if (tokenValidationResult.IsValid)
+                            return tokenValidationResult;
                     }
 
-                    // If we were still unable to validate, attempt to refresh the configuration and validate using it.
-                    validationParameters.ConfigurationManager.RequestRefresh();
-                    var lastConfig = currentConfiguration;
-                    currentConfiguration = validationParameters.ConfigurationManager.GetBaseConfigurationAsync(CancellationToken.None).GetAwaiter().GetResult();
+                    // If we were still unable to validate, attempt to refresh the configuration and validate using it
+                    // but ONLY if the currentConfiguration is not null. We want to avoid refreshing the configuration on
+                    // retrieval error as this case should have already been hit before. This refresh handles the case
+                    // where a new valid configuration was somehow published during validation time.
+                    if (currentConfiguration != null)
+                    {
+                        validationParameters.ConfigurationManager.RequestRefresh();
+                        var lastConfig = currentConfiguration;
+                        currentConfiguration = validationParameters.ConfigurationManager.GetBaseConfigurationAsync(CancellationToken.None).GetAwaiter().GetResult();
 
-                    // Only try to re-validate using the newly obtained config if it doesn't reference equal the previously used configuration.
-                    if (lastConfig != currentConfiguration)
-                        return decryptedJwt != null ? ValidateJWE(outerToken, decryptedJwt, validationParameters, currentConfiguration) : ValidateJWS(token, validationParameters, currentConfiguration);
+                        // Only try to re-validate using the newly obtained config if it doesn't reference equal the previously used configuration.
+                        if (lastConfig != currentConfiguration)
+                            return decryptedJwt != null ? ValidateJWE(outerToken, decryptedJwt, validationParameters, currentConfiguration) : ValidateJWS(token, validationParameters, currentConfiguration); ;
+                    }
                 }
             }
 
             return tokenValidationResult;
         }
-
+     
         private TokenValidationResult ValidateJWS(string token, TokenValidationParameters validationParameters, BaseConfiguration configuration)
         {
             try
@@ -1275,10 +1268,26 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
             }
 
+            // Get information on where keys used during token validation came from for debugging purposes.
+            var keysInTokenValidationParameters = TokenUtilities.GetAllSigningKeys(validationParameters);
+            var keysInConfiguration = TokenUtilities.GetAllSigningKeys(configuration);
+            var numKeysInTokenValidationParameters = keysInTokenValidationParameters.Count();
+            var numKeysInConfiguration = keysInConfiguration.Count();
+
             if (kidExists)
             {
                 if (kidMatched)
-                    throw LogHelper.LogExceptionMessage(new SecurityTokenInvalidSignatureException(LogHelper.FormatInvariant(TokenLogMessages.IDX10511, keysAttempted, jwtToken.Kid, exceptionStrings, jwtToken)));
+                {
+                    var isKidInTVP = keysInTokenValidationParameters.Any(x => x.KeyId.Equals(jwtToken.Kid, StringComparison.Ordinal));
+                    var keyLocation = isKidInTVP ? "TokenValidationParameters" : "Configuration";
+                    throw LogHelper.LogExceptionMessage(new SecurityTokenInvalidSignatureException(
+                        LogHelper.FormatInvariant(TokenLogMessages.IDX10511,
+                        keysAttempted,
+                        LogHelper.MarkAsNonPII(numKeysInTokenValidationParameters),
+                        LogHelper.MarkAsNonPII(numKeysInConfiguration),
+                        LogHelper.MarkAsNonPII(keyLocation),
+                        jwtToken.Kid, exceptionStrings, jwtToken)));
+                }
 
                 var expires = jwtToken.TryGetClaim(JwtRegisteredClaimNames.Exp, out var _) ? (DateTime?)jwtToken.ValidTo : null;
                 var notBefore = jwtToken.TryGetClaim(JwtRegisteredClaimNames.Nbf, out var _) ? (DateTime?)jwtToken.ValidFrom : null;
@@ -1290,11 +1299,18 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                     jwtToken.Kid,
                     validationParameters,
                     configuration,
-                    exceptionStrings);
+                    exceptionStrings,
+                    numKeysInTokenValidationParameters,
+                    numKeysInConfiguration);
             }
 
             if (keysAttempted.Length > 0)
-                throw LogHelper.LogExceptionMessage(new SecurityTokenSignatureKeyNotFoundException(LogHelper.FormatInvariant(TokenLogMessages.IDX10503, keysAttempted, exceptionStrings, jwtToken)));
+                throw LogHelper.LogExceptionMessage(new SecurityTokenSignatureKeyNotFoundException(
+                    LogHelper.FormatInvariant(TokenLogMessages.IDX10503,
+                    keysAttempted,
+                    LogHelper.MarkAsNonPII(numKeysInTokenValidationParameters),
+                    LogHelper.MarkAsNonPII(numKeysInConfiguration),
+                    exceptionStrings, jwtToken)));
 
             throw LogHelper.LogExceptionMessage(new SecurityTokenSignatureKeyNotFoundException(TokenLogMessages.IDX10500));
         }
