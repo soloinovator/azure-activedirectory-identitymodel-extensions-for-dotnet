@@ -97,7 +97,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect
 
                 LogHelper.LogVerbose(LogMessages.IDX21813, openIdConnectConfiguration.JwksUri);
                 openIdConnectConfiguration.JsonWebKeySet = JsonConvert.DeserializeObject<JsonWebKeySet>(keys);
-                foreach (SecurityKey key in openIdConnectConfiguration.JsonWebKeySet.GetSigningKeys())
+                foreach (SecurityKey key in openIdConnectConfiguration.JsonWebKeySet.Keys)
                 {
                     openIdConnectConfiguration.SigningKeys.Add(key);
                 }
