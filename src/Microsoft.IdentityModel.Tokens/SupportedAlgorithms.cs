@@ -362,8 +362,6 @@ namespace Microsoft.IdentityModel.Tokens
             if (key is ECDsaSecurityKey || (key is JsonWebKey rsaJsonWebKey && rsaJsonWebKey.Kty == JsonWebAlgorithmsKeyTypes.EllipticCurve))
                 return key.KeySize >= EcdsaMinKeySize;
 
-            // check if curve is in approved curves (P-256, P-384, or P-521) - only these 3 
-
             return false;
         }
 
