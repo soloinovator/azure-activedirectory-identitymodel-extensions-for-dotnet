@@ -14,11 +14,21 @@ namespace Microsoft.IdentityModel.Tokens
         ClaimsIdentity ClaimsIdentity { get; }
     }
 
+
     /// <summary>
     ///
     /// </summary>
     public interface IClaimProvider
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="claim"></param>
+        /// <param name="claimValue"></param>
+        /// <returns></returns>
+        bool TryGetClaimValue<T> (string claim, out T claimValue);
+
         /// <summary>
         /// 
         /// </summary>
@@ -28,5 +38,10 @@ namespace Microsoft.IdentityModel.Tokens
         ///
         /// </summary>
         IEnumerable<Claim> ActorClaims { get; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        IDictionary<string, object> ClaimsIdentityProperties { get; }
     }
 }

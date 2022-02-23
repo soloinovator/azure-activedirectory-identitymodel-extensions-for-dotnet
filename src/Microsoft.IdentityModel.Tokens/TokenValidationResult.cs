@@ -39,11 +39,13 @@ namespace Microsoft.IdentityModel.Tokens
     {
         private Lazy<IDictionary<string, object>> _claims;
         private Lazy<ClaimsIdentity> _claimsIdentity;
-
         private IClaimProvider _claimProvider;
         private ClaimsIdentity _ciSet;
-        private bool _wasClaimsIdentitySet;
+        private Exception _exception;
+        private bool _isValid;
+        private bool _hasIsValidOrExceptionBeenRead = false;
         private TokenValidationParameters _validationParameters;
+        private bool _wasClaimsIdentitySet;
 
         /// <summary>
         ///
@@ -60,12 +62,15 @@ namespace Microsoft.IdentityModel.Tokens
             Issuer = issuer;
             SecurityToken = securityToken;
              _claimsIdentity = new Lazy<ClaimsIdentity>(() => ClaimsIdentityFactory());
-            _claims = new Lazy<IDictionary<string, object>>(() => TokenUtilities.CreateDictionaryFromClaims(ClaimsIdentity?.Claims));
+            if (_claimProvider != null)
+            {
+                _claims = new Lazy<IDictionary<string, object>>(() => _claimProvider.ClaimsIdentityProperties);
+            }
+            else
+            {
+                _claims = new Lazy<IDictionary<string, object>>(() => TokenUtilities.CreateDictionaryFromClaims(ClaimsIdentity?.Claims));
+            }
         }
-
-        private bool _isValid;
-        private bool _hasIsValidOrExceptionBeenRead = false;
-        private Exception _exception;
 
         /// <summary>
         /// The <see cref="Dictionary{String, Object}"/> created from the validated security token.

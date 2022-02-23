@@ -45,7 +45,11 @@ namespace Microsoft.IdentityModel.JsonWebTokens
     /// <summary>
     /// A <see cref="SecurityToken"/> designed for representing a JSON Web Token (JWT). 
     /// </summary>
+#if NET45
+    public class JsonWebToken : SecurityToken
+#else
     public class JsonWebToken : SecurityToken, IClaimProvider
+#endif
     {
         private char[] _hChars;
         private char[] _pChars;
@@ -516,6 +520,13 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             }
         }
 
+        #if !NET45
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual IDictionary<string, object> ClaimsIdentityProperties => Payload.ClaimsIdentityProperties;
+        #endif
+
         /// <summary>
         /// Gets the 'value' of the 'cty' claim from the header.
         /// </summary>
@@ -665,6 +676,24 @@ namespace Microsoft.IdentityModel.JsonWebTokens
         public bool TryGetClaim(string key, out Claim value)
         {
             return Payload.TryGetClaim(key, Issuer ?? ClaimsIdentity.DefaultIssuer, out value);
+        }
+
+        /// <summary>
+        /// Tries to get the value
+        /// </summary>
+        /// <remarks>
+        /// The expectation is that the 'value' corresponds to a type expected in a JWT token.
+        /// </remarks>
+        /// <returns>true if successful, false otherwise.</returns>
+        public bool TryGetClaimValue<T>(string key, out T value)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                value = default;
+                return false;
+            }
+
+            return Payload.TryGetValue(key, out value);
         }
 
         /// <summary>

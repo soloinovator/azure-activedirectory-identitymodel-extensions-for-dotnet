@@ -20,21 +20,33 @@ namespace Microsoft.IdentityModel.JsonWebTokens
     internal class JsonClaimSet
     {
         IList<Claim> _claims;
+        Lazy<IDictionary<string, object>> _claimProperties;
+
         private static Type _typeofDateTime = typeof(DateTime);
 
-        internal JsonClaimSet() { }
+        internal JsonClaimSet()
+        {
+            _claimProperties = new Lazy<IDictionary<string, object>>(GetClaimsIdentityProperties);
+        }
 
         internal JsonClaimSet(byte[] jsonBytes)
         {
             RootElement = JsonDocument.Parse(jsonBytes).RootElement;
+            _claimProperties = new Lazy<IDictionary<string, object>>(GetClaimsIdentityProperties);
         }
 
         internal JsonClaimSet(string json)
         {
             RootElement = JsonDocument.Parse(json).RootElement;
+            _claimProperties = new Lazy<IDictionary<string, object>>(GetClaimsIdentityProperties);
         }
 
         internal JsonElement RootElement { get; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        internal IDictionary<string, object> ClaimsIdentityProperties => _claimProperties.Value;
 
         // TODO - use lazy.
         internal IList<Claim> Claims(string issuer)
@@ -389,6 +401,18 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
             throw LogHelper.LogExceptionMessage(new FormatException(LogHelper.FormatInvariant(LogMessages.IDX14300, claimName, jsonElement.ToString(), typeof(long))));
         }
+
+        #region Factories for Lazy
+        private IDictionary<string, object> GetClaimsIdentityProperties()
+        {
+            Dictionary<string, object> identityProperties = new Dictionary<string, object>();
+
+            foreach (JsonProperty property in RootElement.EnumerateObject())
+                identityProperties[property.Name] = CreateObjectFromJsonElement(property.Value);
+
+            return identityProperties;
+        }
+        #endregion
     }
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }
