@@ -26,6 +26,9 @@
 //------------------------------------------------------------------------------
 
 using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.IdentityModel.TestUtils;
 using Xunit;
 
@@ -42,6 +45,239 @@ namespace Microsoft.IdentityModel.Tokens.Tests
 #if NET_CORE
         [PlatformSpecific(TestPlatforms.Windows)]
 #endif
+#if NET472 || NETSTANDARD2_0
+        class Alice
+        {
+            //public static byte[] alicePublicKey;
+            public ECDiffieHellmanPublicKey aliceEcdhPublicKey;
+            public ECParameters ecParametersAlice;
+            public ECParameters ecParametersBob;
+            public byte[] DerivedKey { get; private set; }
+
+            public Bob Bob { get; private set; }
+
+            public Alice(ECParameters ecpAlice, ECParameters ecpBob)
+            {
+                ecParametersAlice = ecpAlice;
+                ecParametersBob = ecpBob;
+                DerivedKey = new byte[16];
+            }
+
+            public void Run(string secretMessage, string enc, string apu, string apv, int keyDataLen)
+            {
+                try
+                {
+                    using (ECDiffieHellman ecdhAlice = ECDiffieHellman.Create(ecParametersAlice))
+                    {
+                        aliceEcdhPublicKey = ecdhAlice.PublicKey;
+                        byte[] prepend, append;
+                        prepend = new byte[] { 0, 0, 0, 1 };
+                        SetAppendBytes(enc, apu, apv, keyDataLen, out append);
+
+                        Bob = new Bob(ecParametersBob, ecdhAlice.PublicKey, prepend, append);
+                        ECDiffieHellmanPublicKey bobPublicKey = Bob.bobEcdhPublicKey;
+                        
+                        /* Q: should the key being used only be the first 16 octets/128 bits? from rfc7518 Appendix C:
+                         * The resulting derived key, which is the first 128 bits of the round 1
+                           hash output is:
+                           [86, 170, 141, 234, 248, 35, 109, 32, 92, 34, 40, 205, 113, 167, 16,
+                           26]
+
+                        The base64url-encoded representation of this derived key is:
+                            VqqN6vgjbSBcIijNcacQGg
+                        */
+                        byte[] aliceKey = ecdhAlice.DeriveKeyFromHash(bobPublicKey, HashAlgorithmName.SHA256, prepend, append);
+                        Array.Copy(aliceKey, 0, DerivedKey, 0, 16);
+                        byte[] encryptedMessage = null;
+                        byte[] iv = null;
+                        Send(DerivedKey, secretMessage, out encryptedMessage, out iv);
+                        Bob.Receive(encryptedMessage, iv);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
+
+            private void SetAppendBytes(string enc, string apu, string apv, int keyDataLen, out byte[] append)
+            {
+                byte[] encBytes = Encoding.ASCII.GetBytes(enc); //should it be base64url?
+                byte[] apuBytes = Base64UrlEncoder.DecodeBytes(apu);
+                byte[] apvBytes = Base64UrlEncoder.DecodeBytes(apv);
+                byte[] numOctetsEnc = BitConverter.GetBytes(encBytes.Length);
+                byte[] numOctetsApu = BitConverter.GetBytes(apuBytes.Length);
+                byte[] numOctetsApv = BitConverter.GetBytes(apvBytes.Length);
+                byte[] keyDataLengthBytes = BitConverter.GetBytes(keyDataLen);
+
+                if (BitConverter.IsLittleEndian)
+                {
+                    // these representations need to be big-endian
+                    Array.Reverse(numOctetsEnc);
+                    Array.Reverse(numOctetsApu);
+                    Array.Reverse(numOctetsApv);
+                    Array.Reverse(keyDataLengthBytes);
+                }
+
+                //byte[] algorithmIdBytes = Concat(numOctetsEnc, encBytes);
+                //byte[] partyUInfoBytes = Concat(numOctetsApu, apuBytes);
+                //byte[] partyVInfoBytes = Concat(numOctetsApv, apvBytes);
+                //byte[] suppPubInfoBytes = keyDataLengthBytes;
+                //byte[] append = Concat(algorithmIdBytes, partyUInfoBytes, partyVInfoBytes, suppPubInfoBytes);
+
+                append = Concat(numOctetsEnc, encBytes, numOctetsApu, apuBytes, numOctetsApv, apvBytes, keyDataLengthBytes);
+                //append = { 0, 0, 0, 7, 65, 49, 50, 56, 71, 67, 77, 0, 0, 0, 5, 65, 108, 105, 99, 101, 0, 0, 0, 3, 66, 111, 98, 0, 0, 0, 128};
+            }
+
+            private byte[] Concat(params byte[][] arrays)
+            {
+                int length = 0;
+                foreach (byte[] arr in arrays)
+                    length += arr.Length;
+
+                byte[] output = new byte[length];
+                int x = 0;
+                foreach (byte[] arr in arrays)
+                    for (int j = 0; j < arr.Length; j++, x++)
+                        output[x] = arr[j];
+
+                return output;
+            }
+
+            private static void Send(byte[] key, string secretMessage, out byte[] encryptedMessage, out byte[] iv)
+            {
+                encryptedMessage = new byte[0];
+                iv = new byte[0];
+                using (Aes aes = new AesCryptoServiceProvider())
+                {
+                    aes.Key = key;
+                    iv = aes.IV;
+
+                    // Encrypt the message
+                    using (MemoryStream ciphertext = new MemoryStream())
+                    using (CryptoStream cs = new CryptoStream(ciphertext, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                    {
+                        byte[] plaintextMessage = Encoding.UTF8.GetBytes(secretMessage);
+                        cs.Write(plaintextMessage, 0, plaintextMessage.Length);
+                        cs.Close();
+                        encryptedMessage = ciphertext.ToArray();
+                    }
+                }
+            }
+        }
+
+        public class Bob
+        {
+            //public byte[] bobPublicKey;
+            public ECDiffieHellmanPublicKey bobEcdhPublicKey;
+            private byte[] bobKey;
+            public byte[] DerivedKey { get; private set; }
+            public string MessageReceived { get; private set; }
+
+            public Bob(ECParameters ecpBob, ECDiffieHellmanPublicKey publicKeyOtherParty, byte[] prepend, byte[] append)
+            {
+                try
+                {
+                    using (ECDiffieHellman ecdhBob = ECDiffieHellman.Create(ecpBob))
+                    {
+                        bobEcdhPublicKey = ecdhBob.PublicKey;
+                        bobKey = ecdhBob.DeriveKeyFromHash(publicKeyOtherParty, HashAlgorithmName.SHA256, prepend, append);
+                        DerivedKey = new byte[16];
+                        Array.Copy(bobKey, 0, DerivedKey, 0, 16);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
+
+            public void Receive(byte[] encryptedMessage, byte[] iv)
+            {
+
+                using (Aes aes = new AesCryptoServiceProvider())
+                {
+                    aes.Key = DerivedKey;
+                    aes.IV = iv;
+                    // Decrypt the message
+                    using (MemoryStream plaintext = new MemoryStream())
+                    {
+                        using (CryptoStream cs = new CryptoStream(plaintext, aes.CreateDecryptor(), CryptoStreamMode.Write))
+                        {
+                            cs.Write(encryptedMessage, 0, encryptedMessage.Length);
+                            cs.Close();
+                            MessageReceived = Encoding.UTF8.GetString(plaintext.ToArray());
+                            Console.WriteLine(MessageReceived);
+                        }
+                    }
+                }
+            }
+        }
+#endif
+        [Fact]
+        public void Walkthrough()
+        {
+            var context = new CompareContext();
+#if NET472 || NETSTANDARD2_0
+            // arrange
+            byte[] d1 = Base64UrlEncoder.DecodeBytes(ECDH_ES.AliceEphereralPrivateKey.D);
+            byte[] x1 = Base64UrlEncoder.DecodeBytes(ECDH_ES.AliceEphereralPrivateKey.X);
+            byte[] y1 = Base64UrlEncoder.DecodeBytes(ECDH_ES.AliceEphereralPrivateKey.Y);
+            ECParameters ecpAlice = new ECParameters()
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                D = d1,
+                Q = new ECPoint()
+                {
+                    X = x1,
+                    Y = y1
+                }
+            };
+
+            byte[] d2 = Base64UrlEncoder.DecodeBytes(ECDH_ES.BobEphereralPrivateKey.D);
+            byte[] x2 = Base64UrlEncoder.DecodeBytes(ECDH_ES.BobEphereralPrivateKey.X);
+            byte[] y2 = Base64UrlEncoder.DecodeBytes(ECDH_ES.BobEphereralPrivateKey.Y);
+            ECParameters ecpBob = new ECParameters()
+            {
+                Curve = ECCurve.NamedCurves.nistP256,
+                D = d2,
+                Q = new ECPoint()
+                {
+                    X = x2,
+                    Y = y2
+                }
+            };
+
+            Alice alice = new Alice(ecpAlice, ecpBob);
+            string secretMessage = "Secret message";
+
+            // act
+            // the values ecp, apu, apv, and keyDataLen should come from EPKString
+            alice.Run(
+                secretMessage,
+                "A128GCM", //enc
+                "QWxpY2U", //apu
+                "Qm9i", //apv
+                128); //keydatalen
+
+            // assert
+            // compare derived keys are the same and they're matching with expected
+            if (!Utility.AreEqual(alice.DerivedKey, alice.Bob.DerivedKey)) // todo: nice to have, add utility to compare all three together
+                context.AddDiff($"!Utility.AreEqual(alice.DerivedKey, alice.Bob.DerivedKey)");
+            if (!Utility.AreEqual(alice.DerivedKey, ECDH_ES.DerivedKeyBytes))
+                context.AddDiff($"!Utility.AreEqual(alice.DerivedKey, DerivedKeyBytes)");
+
+            // compare string representation of derived key, second guessing if this is needed
+            string stringRepresentation = Base64UrlEncoder.Encode(alice.DerivedKey, 0, 16);
+            if (!String.Equals(stringRepresentation, ECDH_ES.DerivedKeyEncoded, StringComparison.InvariantCulture))
+                context.AddDiff($"!String.Equals(derivedKeyFromBob, DerivedKeyBytes)");
+
+            // compare sent and received messages are the same
+            if (!String.Equals(secretMessage, alice.Bob.MessageReceived, StringComparison.InvariantCulture))
+                context.AddDiff($"!String.Equals(secretMessage, alice.Bob.MessageReceived)");
+#endif
+            TestUtilities.AssertFailIfErrors(context);
+        }
 
         [Fact]
         public void AesGcmReferenceTest()
