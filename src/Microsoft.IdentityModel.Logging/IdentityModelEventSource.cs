@@ -44,7 +44,10 @@ namespace Microsoft.IdentityModel.Logging
             Logger = new IdentityModelEventSource();
         }
 
-        private IdentityModelEventSource()
+        /// <summary>
+        /// Defines the default log level of the <see cref="IdentityModelEventSource"/> logger.
+        /// </summary>
+        protected IdentityModelEventSource()
         {
             LogLevel = EventLevel.Warning;
         }
