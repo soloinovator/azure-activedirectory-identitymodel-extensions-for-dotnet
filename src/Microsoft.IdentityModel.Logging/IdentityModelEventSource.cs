@@ -320,8 +320,13 @@ namespace Microsoft.IdentityModel.Logging
             // Logs basic information: library version, date, and whether PII (personally identifiable information) logging is on or off.
             if (!HeaderWritten)
             {
+                if (string.IsNullOrEmpty(LibraryVersion))
+                {
+                    LibraryVersion = typeof(IdentityModelEventSource).GetTypeInfo().Assembly.GetName().Version.ToString();
+                }
+
                 // Obtain the current library version dynamically.
-                WriteAlways(string.Format(CultureInfo.InvariantCulture, _versionLogMessage, typeof(IdentityModelEventSource).GetTypeInfo().Assembly.GetName().Version.ToString()));
+                WriteAlways(string.Format(CultureInfo.InvariantCulture, _versionLogMessage, LibraryVersion));
                 WriteAlways(string.Format(CultureInfo.InvariantCulture, _dateLogMessage, DateTime.UtcNow));
                 if (ShowPII) 
                     WriteAlways(_piiOnLogMessage);
