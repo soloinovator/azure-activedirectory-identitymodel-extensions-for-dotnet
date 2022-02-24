@@ -73,6 +73,11 @@ namespace Microsoft.IdentityModel.Logging
         public static bool HeaderWritten { get; set; } = false;
 
         /// <summary>
+        /// String that indicates the version of the library that is logging the message.
+        /// </summary>
+        protected static string LibraryVersion { get; set; }
+
+        /// <summary>
         /// The log message that indicates the current library version.
         /// </summary>
         private static string _versionLogMessage = "Library version: {0}.";
@@ -210,10 +215,13 @@ namespace Microsoft.IdentityModel.Logging
         [NonEvent]
         public void WriteWarning(string message, params object[] args)
         {
-            if (args != null)
-                WriteWarning(FormatInvariant(message, args));
-            else
-                WriteWarning(message);
+            if (IsEnabled() && LogLevel >= EventLevel.Warning)
+            {
+                if (args != null)
+                    WriteWarning(FormatInvariant(message, args));
+                else
+                    WriteWarning(message);
+            }
         }
 
         /// <summary>
