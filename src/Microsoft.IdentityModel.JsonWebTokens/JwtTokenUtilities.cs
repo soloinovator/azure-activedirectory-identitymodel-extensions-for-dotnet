@@ -292,6 +292,10 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
                 securityKey = encryptingCredentials.Key;
             }
+            else if (SecurityAlgorithms.EcdhEsA128kw.Equals(encryptingCredentials.Alg, StringComparison.Ordinal))
+            {
+                //create agreen upon key = SharedPubicKey * Curve * private 
+            }
             else
             {
                 if (!cryptoProviderFactory.IsSupportedAlgorithm(encryptingCredentials.Alg, encryptingCredentials.Key))
