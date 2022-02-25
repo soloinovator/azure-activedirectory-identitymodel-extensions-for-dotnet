@@ -75,7 +75,7 @@ namespace Microsoft.IdentityModel.Logging
         /// <summary>
         /// String that indicates the version of the library that is logging the message.
         /// </summary>
-        protected static string LibraryVersion { get; set; }
+        protected static string LibraryVersion { get; } = typeof(IdentityModelEventSource).GetTypeInfo().Assembly.GetName().Version.ToString();
 
         /// <summary>
         /// The log message that indicates the current library version.
@@ -90,12 +90,12 @@ namespace Microsoft.IdentityModel.Logging
         /// <summary>
         /// The log message that is shown when PII is off.
         /// </summary>
-        private static string _piiOffLogMessage = "PII (personally identifiable information) logging is currently turned off. Set IdentityModelEventSource.ShowPII to 'true' to view the full details of exceptions.";
+        protected static string PIIOffLogMessage { get; } = "PII (personally identifiable information) logging is currently turned off. Set IdentityModelEventSource.ShowPII to 'true' to view the full details of exceptions.";
 
         /// <summary>
         /// The log message that is shown when PII is off.
         /// </summary>
-        private static string _piiOnLogMessage = "PII (personally identifiable information) logging is currently turned on. Set IdentityModelEventSource.ShowPII to 'false' to hide PII from log messages.";
+        protected static string PIIOnLogMessage { get; } = "PII (personally identifiable information) logging is currently turned on. Set IdentityModelEventSource.ShowPII to 'false' to hide PII from log messages.";
 
 
         /// <summary>
@@ -320,16 +320,13 @@ namespace Microsoft.IdentityModel.Logging
             // Logs basic information: library version, date, and whether PII (personally identifiable information) logging is on or off.
             if (!HeaderWritten)
             {
-                if (string.IsNullOrEmpty(LibraryVersion))
-                    LibraryVersion = typeof(IdentityModelEventSource).GetTypeInfo().Assembly.GetName().Version.ToString();
-
                 // Obtain the current library version dynamically.
                 WriteAlways(string.Format(CultureInfo.InvariantCulture, _versionLogMessage, LibraryVersion));
                 WriteAlways(string.Format(CultureInfo.InvariantCulture, _dateLogMessage, DateTime.UtcNow));
                 if (ShowPII) 
-                    WriteAlways(_piiOnLogMessage);
+                    WriteAlways(PIIOnLogMessage);
                 else
-                    WriteAlways(_piiOffLogMessage);
+                    WriteAlways(PIIOffLogMessage);
 
                 HeaderWritten = true; // We only want to log this information once before any log messages are written.
             }
