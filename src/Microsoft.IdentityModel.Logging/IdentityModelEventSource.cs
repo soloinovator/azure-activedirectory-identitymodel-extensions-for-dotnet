@@ -321,9 +321,7 @@ namespace Microsoft.IdentityModel.Logging
             if (!HeaderWritten)
             {
                 if (string.IsNullOrEmpty(LibraryVersion))
-                {
                     LibraryVersion = typeof(IdentityModelEventSource).GetTypeInfo().Assembly.GetName().Version.ToString();
-                }
 
                 // Obtain the current library version dynamically.
                 WriteAlways(string.Format(CultureInfo.InvariantCulture, _versionLogMessage, LibraryVersion));
