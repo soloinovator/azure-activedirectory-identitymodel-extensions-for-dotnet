@@ -57,6 +57,7 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Used as validation", Scope = "member", Target = "~M:Microsoft.IdentityModel.Tokens.InternalValidators.ValidateLifetimeAndIssuerAfterSignatureNotValidatedJwt(Microsoft.IdentityModel.Tokens.SecurityToken,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.String,Microsoft.IdentityModel.Tokens.TokenValidationParameters,Microsoft.IdentityModel.Tokens.BaseConfiguration,System.Text.StringBuilder,System.Int32,System.Int32)")]
 #if NET472 || NETSTANDARD2_0
 [assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Used to determine appropriate code path to take.", Scope = "member", Target = "~M:Microsoft.IdentityModel.Tokens.JsonWebKeyConverter.ConvertFromECDsaSecurityKey(Microsoft.IdentityModel.Tokens.ECDsaSecurityKey)~Microsoft.IdentityModel.Tokens.JsonWebKey")]
+[assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Used to determine appropriate code path to take.", Scope = "member", Target = "~P:Microsoft.IdentityModel.Tokens.EcdhSecurityKey.PrivateKeyStatus")]
 #endif
 #if !NET472
 [assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Used as validation", Scope = "member", Target = "~M:Microsoft.IdentityModel.Tokens.ECDsaAdapter.SupportsECParameters~System.Boolean")]

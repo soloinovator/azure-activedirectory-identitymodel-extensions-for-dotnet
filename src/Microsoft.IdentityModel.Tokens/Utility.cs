@@ -280,5 +280,23 @@ namespace Microsoft.IdentityModel.Tokens
                 return hash.ComputeHash(Encoding.UTF8.GetBytes(input));
             }
         }
+
+#if NET472
+        //todo: find a better place to have this utility method
+        internal static ECCurve GetEllipticCurve(string crv)
+        {
+            if (JsonWebKeyECTypes.P256.Equals(crv, StringComparison.InvariantCulture))
+                return ECCurve.NamedCurves.nistP256;
+
+            if (JsonWebKeyECTypes.P384.Equals(crv, StringComparison.InvariantCulture))
+                return ECCurve.NamedCurves.nistP384;
+
+            if (JsonWebKeyECTypes.P512.Equals(crv, StringComparison.InvariantCulture)
+                || JsonWebKeyECTypes.P521.Equals(crv, StringComparison.InvariantCulture))
+                return ECCurve.NamedCurves.nistP521;
+
+            throw LogHelper.LogArgumentException<ArgumentException>(nameof(crv), "Curve was not found or is not NIST approved");
+        }
+#endif
     }
 }

@@ -333,6 +333,32 @@ namespace Microsoft.IdentityModel.Tokens
             };
         }
 
+#if NET472
+        internal ECParameters CreateEcParameters()
+        {
+            //todo: update log msgs
+            if (string.IsNullOrEmpty(Crv))
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX10700, LogHelper.MarkAsNonPII(_className), LogHelper.MarkAsNonPII("Crv"))));
+
+            if (string.IsNullOrEmpty(X))
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX10700, LogHelper.MarkAsNonPII(_className), LogHelper.MarkAsNonPII("X"))));
+
+            if (string.IsNullOrEmpty(Y))
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX10700, LogHelper.MarkAsNonPII(_className), LogHelper.MarkAsNonPII("Y"))));
+
+            return new ECParameters
+            {
+                Curve = Utility.GetEllipticCurve(Crv),
+                D = string.IsNullOrEmpty(D) ? null : Base64UrlEncoder.DecodeBytes(D),
+                Q = new ECPoint()
+                {
+                    X = Base64UrlEncoder.DecodeBytes(X),
+                    Y = Base64UrlEncoder.DecodeBytes(Y)
+                }
+            };
+        }
+#endif
+
         /// <summary>
         /// Determines whether the <see cref="JsonWebKey"/> can compute a JWK thumbprint.
         /// </summary>

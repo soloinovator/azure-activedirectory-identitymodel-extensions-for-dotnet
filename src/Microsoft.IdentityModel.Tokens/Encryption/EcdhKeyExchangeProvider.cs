@@ -53,6 +53,22 @@ namespace Microsoft.IdentityModel.Tokens
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        public int KeySize
+        {
+            get
+            {
+                return _ecParams.D.Length;
+            }
+        }
+
+        /// <summary>
+        /// String representing the curve name, ex: P-256, P-384, P-512
+        /// </summary>
+        public string Crv { get; private set; }
+
         private Lazy<ECDiffieHellman> _ecdh;
         private ECParameters _ecParams;
         private bool _disposed;
@@ -67,10 +83,13 @@ namespace Microsoft.IdentityModel.Tokens
             if (jwk is null)
                 throw new ArgumentNullException(nameof(jwk), "JsonWebKey jwk cannot be null");
 
+            var curve = Utility.GetEllipticCurve(jwk.Crv);
+            Crv = jwk.Crv;
+
             _ecParams = new ECParameters()
             {
-                Curve = GetEllipticCurve(jwk.Crv),
-                D = Base64UrlEncoder.DecodeBytes(jwk.D), //should be optional
+                Curve = curve,
+                D = Base64UrlEncoder.DecodeBytes(jwk.D), //todo: should be optional
                 Q = new ECPoint()
                 {
                     X = Base64UrlEncoder.DecodeBytes(jwk.X),
@@ -78,8 +97,18 @@ namespace Microsoft.IdentityModel.Tokens
                 }
             };
 
-            _i = 1;
             _ecdh = new Lazy<ECDiffieHellman>(CreateECdiffieHellman);
+            _i = 1;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="includePrivateParameters"></param>
+        /// <returns></returns>
+        public ECParameters ExportParameters(bool includePrivateParameters)
+        {
+            return _ecdh.Value.ExportParameters(includePrivateParameters);
         }
 
         private ECDiffieHellman CreateECdiffieHellman()
@@ -92,36 +121,31 @@ namespace Microsoft.IdentityModel.Tokens
         /// </summary>
         /// <param name="otherPartyPublicKey"></param>
         /// <param name="enc"></param>
-        /// <param name="apu"></param>
-        /// <param name="apv"></param>
-        /// <param name="keyDataLen"></param>
+        /// <param name="apu">Agreement PartyUInfo (optional). When used, the PartyVInfo value contains information about the producer,
+        /// represented as a base64url-encoded string.</param>
+        /// <param name="apv">Agreement PartyVInfo (optional). When used, the PartyUInfo value contains information about the recipient,
+        /// represented as a base64url-encoded string.</param>
+        /// <param name="keyDataLen">The number of bits in the desired output key</param>
         /// <returns></returns>
         public byte[] GenerateCek(ECDiffieHellmanPublicKey otherPartyPublicKey, string enc, string apu, string apv, int keyDataLen)
         {
-            int cekLength = keyDataLen / 8;
+            //todo: change into returning a security key instead of bytes
+            if (_disposed)
+                throw LogHelper.LogExceptionMessage(new ObjectDisposedException(GetType().ToString()));
+
+            //The "apu" and "apv" values MUST be distinct, when used (per rfc7518 section 4.6.2)
+            int cekLength = keyDataLen / 8; // number of octets
             byte[] prepend = BitConverter.GetBytes(_i++);
             if (BitConverter.IsLittleEndian)
                 Array.Reverse(prepend);
             SetAppendBytes(enc, apu, apv, keyDataLen, out byte[] append);
             byte[] cek = new byte[cekLength];
             byte[] derivedKey = _ecdh.Value.DeriveKeyFromHash(otherPartyPublicKey, HashAlgorithmName.SHA256, prepend, append);
+            //_ecdh.Value.DeriveKeyFromHmac(otherPartyPublicKey, HashAlgorithmName.SHA256, salt, prepend, append);
+            //SecurityKey sk;
+
             Array.Copy(derivedKey, cek, cekLength);
             return cek;
-        }
-
-        private static ECCurve GetEllipticCurve(string crv)
-        {
-            if (JsonWebKeyECTypes.P256.Equals(crv, StringComparison.InvariantCulture))
-                return ECCurve.NamedCurves.nistP256;
-
-            if (JsonWebKeyECTypes.P384.Equals(crv, StringComparison.InvariantCulture))
-                return ECCurve.NamedCurves.nistP384;
-
-            if (JsonWebKeyECTypes.P512.Equals(crv, StringComparison.InvariantCulture)
-                || JsonWebKeyECTypes.P521.Equals(crv, StringComparison.InvariantCulture))
-                return ECCurve.NamedCurves.nistP521;
-
-            throw LogHelper.LogArgumentException<ArgumentException>(nameof(crv), "Curve was not found or is not NIST approved");
         }
 
         private static void SetAppendBytes(string enc, string apu, string apv, int keyDataLen, out byte[] append)
