@@ -40,107 +40,108 @@ namespace Microsoft.IdentityModel.Tokens
     /// <summary>
     /// Provides a Security Key that can be used as Content Encryption Key (CEK) for use with a JWE
     /// </summary>
-    public class EcdhKeyExchangeProvider : IDisposable
+    public class EcdhKeyExchangeProvider //todo: rename to KeyExchangeProvider
     {
-        /// <summary>
-        /// Represents the public key that can be shared with the other party
-        /// </summary>
-        public ECDiffieHellmanPublicKey PublicKey
-        {
-            get
-            {
-                return _ecdh.Value.PublicKey;
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public int KeySize
-        {
-            get
-            {
-                return _ecParams.D.Length;
-            }
-        }
-
         /// <summary>
         /// String representing the curve name, ex: P-256, P-384, P-512
         /// </summary>
         public string Crv { get; private set; }
 
-        private Lazy<ECDiffieHellman> _ecdh;
-        private ECParameters _ecParams;
-        private bool _disposed;
+        private ECDiffieHellman _ecdhPublic;
+        private ECDiffieHellman _ecdhPrivate;
+        private ECParameters _ecParamsPublic;
+        private ECParameters _ecParamsPrivate;
+        private string _alg;
+        private int _keyDataLen;
         private int _i;
 
         /// <summary>
         /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
-        /// <param name="jwk">The <see cref="JsonWebKey"/> that will be used for cryptographic operations.</param>
+        /// <param name="privateKey"></param>
+        /// <param name="publicKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations.</param>
+        /// <param name="alg"></param>
         /// </summary>
-        public EcdhKeyExchangeProvider(JsonWebKey jwk)
+        public EcdhKeyExchangeProvider(ECDsaSecurityKey privateKey, JsonWebKey publicKey, string alg)
         {
-            if (jwk is null)
-                throw new ArgumentNullException(nameof(jwk), "JsonWebKey jwk cannot be null");
+            if (string.IsNullOrEmpty(alg))
+                throw new ArgumentNullException(nameof(alg), "cannot be null");
+            if (privateKey == null)
+                throw new ArgumentNullException(nameof(privateKey), "cannot be null");
+            if (publicKey is null)
+                throw new ArgumentNullException(nameof(publicKey), "JsonWebKey jwk cannot be null");
+            if (!SupportedAlgorithms.EcdsaWrapAlgorithms.Contains(alg))
+                throw new ArgumentException("Invalid alg", nameof(alg));
 
-            var curve = Utility.GetEllipticCurve(jwk.Crv);
-            Crv = jwk.Crv;
+            if (SecurityAlgorithms.EcdhEsA128kw.Equals(alg, StringComparison.InvariantCultureIgnoreCase))
+            {
+                _keyDataLen = 128;
+                _alg = "A128KW";
+            }
+            else if (SecurityAlgorithms.EcdhEsA192kw.Equals(alg, StringComparison.InvariantCultureIgnoreCase))
+            {
+                _keyDataLen = 192;
+                _alg = "A192KW";
+            }
+            else if (SecurityAlgorithms.EcdhEsA256kw.Equals(alg, StringComparison.InvariantCultureIgnoreCase))
+            {
+                _keyDataLen = 256;
+                _alg = "A256KW";
+            }
 
-            _ecParams = new ECParameters()
+
+            _ecParamsPrivate = privateKey.ECDsa.ExportParameters(true);
+
+            ECCurve curve = Utility.GetEllipticCurve(publicKey.Crv);
+            Crv = publicKey.Crv;
+
+            _ecParamsPublic = new ECParameters()
             {
                 Curve = curve,
-                D = Base64UrlEncoder.DecodeBytes(jwk.D), //todo: should be optional
                 Q = new ECPoint()
                 {
-                    X = Base64UrlEncoder.DecodeBytes(jwk.X),
-                    Y = Base64UrlEncoder.DecodeBytes(jwk.Y)
+                    X = Base64UrlEncoder.DecodeBytes(publicKey.X),
+                    Y = Base64UrlEncoder.DecodeBytes(publicKey.Y)
                 }
             };
 
-            _ecdh = new Lazy<ECDiffieHellman>(CreateECdiffieHellman);
+            if (_ecParamsPrivate.Curve.Equals(_ecParamsPublic.Curve))
+            {
+                throw new ArgumentException("curves should match");
+            }
+
+            _ecdhPublic = ECDiffieHellman.Create(_ecParamsPublic);
+            _ecdhPrivate = ECDiffieHellman.Create(_ecParamsPrivate);
             _i = 1;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="includePrivateParameters"></param>
-        /// <returns></returns>
-        public ECParameters ExportParameters(bool includePrivateParameters)
-        {
-            return _ecdh.Value.ExportParameters(includePrivateParameters);
-        }
-
-        private ECDiffieHellman CreateECdiffieHellman()
-        {
-            return ECDiffieHellman.Create(_ecParams);
         }
 
         /// <summary>
         /// Generates the Content Encryption Key
         /// </summary>
-        /// <param name="otherPartyPublicKey"></param>
-        /// <param name="enc"></param>
         /// <param name="apu">Agreement PartyUInfo (optional). When used, the PartyVInfo value contains information about the producer,
         /// represented as a base64url-encoded string.</param>
         /// <param name="apv">Agreement PartyVInfo (optional). When used, the PartyUInfo value contains information about the recipient,
         /// represented as a base64url-encoded string.</param>
-        /// <param name="keyDataLen">The number of bits in the desired output key</param>
         /// <returns></returns>
-        public byte[] GenerateCek(ECDiffieHellmanPublicKey otherPartyPublicKey, string enc, string apu, string apv, int keyDataLen)
+        public byte[] GenerateCek(string apu, string apv) //todo: alg keydatalen will be properties
         {
             //todo: change into returning a security key instead of bytes
-            if (_disposed)
-                throw LogHelper.LogExceptionMessage(new ObjectDisposedException(GetType().ToString()));
+            //todo: default values for apu and apv?
+            if (string.IsNullOrEmpty(apu))
+                throw new ArgumentNullException(nameof(apu), "Cannot be null");
+            if (string.IsNullOrEmpty(apv))
+                throw new ArgumentNullException(nameof(apv), "Cannot be null");
 
             //The "apu" and "apv" values MUST be distinct, when used (per rfc7518 section 4.6.2)
-            int cekLength = keyDataLen / 8; // number of octets
+            if (apu.Equals(apv, StringComparison.InvariantCulture))
+                throw new ArgumentException("apu and apv need to be different");
+
+            int cekLength = _keyDataLen / 8; // number of octets
             byte[] prepend = BitConverter.GetBytes(_i++);
             if (BitConverter.IsLittleEndian)
                 Array.Reverse(prepend);
-            SetAppendBytes(enc, apu, apv, keyDataLen, out byte[] append);
+            SetAppendBytes(apu, apv, out byte[] append);
             byte[] cek = new byte[cekLength];
-            byte[] derivedKey = _ecdh.Value.DeriveKeyFromHash(otherPartyPublicKey, HashAlgorithmName.SHA256, prepend, append);
+            byte[] derivedKey = _ecdhPrivate.DeriveKeyFromHash(_ecdhPublic.PublicKey, HashAlgorithmName.SHA256, prepend, append);
             //_ecdh.Value.DeriveKeyFromHmac(otherPartyPublicKey, HashAlgorithmName.SHA256, salt, prepend, append);
             //SecurityKey sk;
 
@@ -148,15 +149,15 @@ namespace Microsoft.IdentityModel.Tokens
             return cek;
         }
 
-        private static void SetAppendBytes(string enc, string apu, string apv, int keyDataLen, out byte[] append)
+        private void SetAppendBytes(string apu, string apv, out byte[] append)
         {
-            byte[] encBytes = Encoding.ASCII.GetBytes(enc); //should it be using base64urlEncoder?
+            byte[] encBytes = Encoding.ASCII.GetBytes(_alg); //should it be using base64urlEncoder?
             byte[] apuBytes = Base64UrlEncoder.DecodeBytes(apu);
             byte[] apvBytes = Base64UrlEncoder.DecodeBytes(apv);
             byte[] numOctetsEnc = BitConverter.GetBytes(encBytes.Length);
             byte[] numOctetsApu = BitConverter.GetBytes(apuBytes.Length);
             byte[] numOctetsApv = BitConverter.GetBytes(apvBytes.Length);
-            byte[] keyDataLengthBytes = BitConverter.GetBytes(keyDataLen);
+            byte[] keyDataLengthBytes = BitConverter.GetBytes(_keyDataLen);
 
             if (BitConverter.IsLittleEndian)
             {
@@ -183,41 +184,6 @@ namespace Microsoft.IdentityModel.Tokens
                     output[x] = arr[j];
 
             return output;
-        }
-
-        /// <summary>
-        /// Disposes of internal components.
-        /// </summary>
-        /// <param name="disposing">true, if called from Dispose(), false, if invoked inside a finalizer.</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    _ecdh.Value.Dispose();
-                    _disposed = true;
-                }
-
-                _disposed = true;
-            }
-        }
-
-        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-        // ~EcdhKeyExchangeProvider()
-        // {
-        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        //     Dispose(disposing: false);
-        // }
-
-        /// <summary>
-        /// Calls <see cref="Dispose(bool)"/> and <see cref="GC.SuppressFinalize"/>
-        /// </summary>
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
         }
     }
 #endif
