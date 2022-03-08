@@ -52,36 +52,36 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             var context = new CompareContext();
 #if NET472
             // arrange
-            string alg = "ECDH-ES+A128KW";
-            //string alg = "A128GCM"; //todo: how to make reference test with alg = "a128GCM" not break since we're not supporting it
-            var aliceEcdsaSecurityKey = new ECDsaSecurityKey(ECDH_ES.AliceEphereralPrivateKey, true);
-            var aliceKeyExchangeProvider = new EcdhKeyExchangeProvider(aliceEcdsaSecurityKey, ECDH_ES.BobEphereralPublicKey, alg);
-
-            var bobEcdsaSecurityKey = new ECDsaSecurityKey(ECDH_ES.BobEphereralPrivateKey, true);
-            var bobKeyExchangeProvider = new EcdhKeyExchangeProvider(bobEcdsaSecurityKey, ECDH_ES.AliceEphereralPublicKey, alg);
-
-            // the values ecp, apu, apv, and keyDataLen should come from EPKString
+            // the values alg, enc, apu, apv, should come from EPKString
+            string alg = "ECDH-ES";
+            string enc = "A128GCM"; 
             string apu = "QWxpY2U", apv = "Qm9i";
 
+            var aliceEcdsaSecurityKey = new ECDsaSecurityKey(ECDH_ES.AliceEphereralPrivateKey, true);
+            var aliceKeyExchangeProvider = new EcdhKeyExchangeProvider(aliceEcdsaSecurityKey, ECDH_ES.BobEphereralPublicKey, alg, enc);
+
+            var bobEcdsaSecurityKey = new ECDsaSecurityKey(ECDH_ES.BobEphereralPrivateKey, true);
+            var bobKeyExchangeProvider = new EcdhKeyExchangeProvider(bobEcdsaSecurityKey, ECDH_ES.AliceEphereralPublicKey, alg, enc);
+
             // act
-            var aliceCek = aliceKeyExchangeProvider.GenerateCek(apu, apv);
-            var bobCek = bobKeyExchangeProvider.GenerateCek(apu, apv);
-            var aliceCek2 = aliceKeyExchangeProvider.GenerateCek(apu, apv);
-            var bobCek2 = bobKeyExchangeProvider.GenerateCek(apu, apv);
+            SecurityKey aliceCek = aliceKeyExchangeProvider.GenerateCek(apu, apv);
+            SecurityKey bobCek = bobKeyExchangeProvider.GenerateCek(apu, apv);
+            SecurityKey aliceCek2 = aliceKeyExchangeProvider.GenerateCek(apu, apv);
+            SecurityKey bobCek2 = bobKeyExchangeProvider.GenerateCek(apu, apv);
 
             // assert
             // compare CEKs are the same and they're matching with expected
-            if (!Utility.AreEqual(aliceCek, bobCek)) 
+            if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek).Key, ((SymmetricSecurityKey)bobCek).Key)) 
                 context.AddDiff($"!Utility.AreEqual(aliceCek, bobCek)");
-            if (!Utility.AreEqual(aliceCek2, bobCek2))
+            if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek2).Key, ((SymmetricSecurityKey)bobCek2).Key))
                 context.AddDiff($"!Utility.AreEqual(aliceCek2, bobCek2)");
-            //if (!Utility.AreEqual(aliceCek, ECDH_ES.DerivedKeyBytes))
-            //    context.AddDiff($"!Utility.AreEqual(aliceCek, ECDH_ES.DerivedKeyBytes)");
+            if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek).Key, ECDH_ES.DerivedKeyBytes))
+                context.AddDiff($"!Utility.AreEqual(aliceCek, ECDH_ES.DerivedKeyBytes)");
 
             // compare string representation of derived key, second guessing if this is needed
-            //string stringRepresentation = Base64UrlEncoder.Encode(aliceCek, 0, 16);
-            //if (!String.Equals(stringRepresentation, ECDH_ES.DerivedKeyEncoded, StringComparison.InvariantCulture))
-            //    context.AddDiff($"!String.Equals(stringRepresentation, ECDH_ES.DerivedKeyEncoded)");
+            string stringRepresentation = Base64UrlEncoder.Encode(((SymmetricSecurityKey)aliceCek).Key, 0, 16);
+            if (!String.Equals(stringRepresentation, ECDH_ES.DerivedKeyEncoded, StringComparison.InvariantCulture))
+                context.AddDiff($"!String.Equals(stringRepresentation, ECDH_ES.DerivedKeyEncoded)");
 
 #endif
             TestUtilities.AssertFailIfErrors(context);
