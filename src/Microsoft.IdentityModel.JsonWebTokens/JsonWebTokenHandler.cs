@@ -819,6 +819,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             if (keys == null)
                 keys = JwtTokenUtilities.GetAllDecryptionKeys(validationParameters);
 
+            // do we expand to include (jwtToken.Alg == ECDH-ES)
             if (jwtToken.Alg.Equals(JwtConstants.DirectKeyUseAlg, StringComparison.Ordinal))
                 return keys;
 
@@ -866,6 +867,9 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             if (validationParameters == null)
                 throw LogHelper.LogArgumentNullException(nameof(validationParameters));
 
+            // need to add logic here for ECDH-ES
+            // use EcdhKeyExchangeProvider to get key that will unwrap the CEK in the JWE header.
+
             if (!string.IsNullOrEmpty(jwtToken.Kid))
             {
                 if (validationParameters.TokenDecryptionKey != null
@@ -907,6 +911,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                     }
                 }
             }
+
             return null;
         }
 
