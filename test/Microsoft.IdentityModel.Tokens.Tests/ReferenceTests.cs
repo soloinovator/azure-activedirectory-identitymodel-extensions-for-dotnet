@@ -54,7 +54,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             // arrange
             // the values alg, enc, apu, apv, should come from EPKString
             string alg = "ECDH-ES";
-            string enc = "A128GCM"; 
+            string enc = "A128GCM";
             string apu = "QWxpY2U", apv = "Qm9i";
 
             var aliceEcdsaSecurityKey = new ECDsaSecurityKey(ECDH_ES.AliceEphereralPrivateKey, true);
@@ -77,11 +77,6 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                 context.AddDiff($"!Utility.AreEqual(aliceCek2, bobCek2)");
             if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek).Key, ECDH_ES.DerivedKeyBytes))
                 context.AddDiff($"!Utility.AreEqual(aliceCek, ECDH_ES.DerivedKeyBytes)");
-
-            // compare string representation of derived key, second guessing if this is needed
-            string stringRepresentation = Base64UrlEncoder.Encode(((SymmetricSecurityKey)aliceCek).Key, 0, 16);
-            if (!String.Equals(stringRepresentation, ECDH_ES.DerivedKeyEncoded, StringComparison.InvariantCulture))
-                context.AddDiff($"!String.Equals(stringRepresentation, ECDH_ES.DerivedKeyEncoded)");
 
 #endif
             TestUtilities.AssertFailIfErrors(context);

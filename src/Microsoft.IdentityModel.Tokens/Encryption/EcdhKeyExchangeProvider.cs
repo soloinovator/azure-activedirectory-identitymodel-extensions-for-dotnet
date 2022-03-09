@@ -54,10 +54,10 @@ namespace Microsoft.IdentityModel.Tokens
         /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
         /// <param name="privateKey">The <see cref="ECDsaSecurityKey"/> that will be used for cryptographic operations and represents the private key.</param>
         /// <param name="publicKey">The <see cref="ECDsaSecurityKey"/> that will be used for cryptographic operations and represents the public key.</param>
-        /// <param name="alg">alg header parameter value</param>
-        /// <param name="enc">enc header parameter value (optional)</param>
+        /// <param name="alg">alg header parameter value.</param>
+        /// <param name="enc">enc header parameter value.</param>
         /// </summary>
-        public EcdhKeyExchangeProvider(ECDsaSecurityKey privateKey, ECDsaSecurityKey publicKey, string alg, string enc = null)
+        public EcdhKeyExchangeProvider(ECDsaSecurityKey privateKey, ECDsaSecurityKey publicKey, string alg, string enc)
         {
             if (privateKey == null)
                 throw LogHelper.LogArgumentNullException(nameof(privateKey));
@@ -82,10 +82,10 @@ namespace Microsoft.IdentityModel.Tokens
         /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
         /// <param name="privateKey">The <see cref="ECDsaSecurityKey"/> that will be used for cryptographic operations and represents the private key.</param>
         /// <param name="publicKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations and represents the public key.</param>
-        /// <param name="alg">alg header parameter value</param>
-        /// <param name="enc">enc header parameter value (optional)</param>
+        /// <param name="alg">alg header parameter value.</param>
+        /// <param name="enc">enc header parameter value.</param>
         /// </summary>
-        public EcdhKeyExchangeProvider(ECDsaSecurityKey privateKey, JsonWebKey publicKey, string alg, string enc = null)
+        public EcdhKeyExchangeProvider(ECDsaSecurityKey privateKey, JsonWebKey publicKey, string alg, string enc)
         {
             if (privateKey == null)
                 throw LogHelper.LogArgumentNullException(nameof(privateKey));
@@ -110,10 +110,10 @@ namespace Microsoft.IdentityModel.Tokens
         /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
         /// <param name="privateKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations and represents the private key.</param>
         /// <param name="publicKey">The <see cref="ECDsaSecurityKey"/> that will be used for cryptographic operations and represents the public key.</param>
-        /// <param name="alg">alg header parameter value</param>
-        /// <param name="enc">enc header parameter value (optional)</param>
+        /// <param name="alg">alg header parameter value.</param>
+        /// <param name="enc">enc header parameter value.</param>
         /// </summary>
-        public EcdhKeyExchangeProvider(JsonWebKey privateKey, ECDsaSecurityKey publicKey, string alg, string enc = null)
+        public EcdhKeyExchangeProvider(JsonWebKey privateKey, ECDsaSecurityKey publicKey, string alg, string enc)
         {
             if (privateKey == null)
                 throw LogHelper.LogArgumentNullException(nameof(privateKey));
@@ -138,10 +138,10 @@ namespace Microsoft.IdentityModel.Tokens
         /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
         /// <param name="privateKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations and represents the private key.</param>
         /// <param name="publicKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations and represents the public key.</param>
-        /// <param name="alg">alg header parameter value</param>
-        /// <param name="enc">enc header parameter value (optional)</param>
+        /// <param name="alg">alg header parameter value.</param>
+        /// <param name="enc">enc header parameter value.</param>
         /// </summary>
-        public EcdhKeyExchangeProvider(JsonWebKey privateKey, JsonWebKey publicKey, string alg, string enc = null)
+        public EcdhKeyExchangeProvider(JsonWebKey privateKey, JsonWebKey publicKey, string alg, string enc)
         {
             if (privateKey == null)
                 throw LogHelper.LogArgumentNullException(nameof(privateKey));
@@ -170,17 +170,12 @@ namespace Microsoft.IdentityModel.Tokens
         /// <param name="apv">Agreement PartyVInfo (optional). When used, the PartyUInfo value contains information about the recipient,
         /// represented as a base64url-encoded string.</param>
         /// <returns></returns>
-        public SecurityKey GenerateCek(string apu, string apv)
+        public SecurityKey GenerateCek(string apu = null, string apv = null)
         {
-            //todo: if values for apu or apv are not present: Datalen is set to 0 and Data is set to the empty octet sequence
-            // what is an empty octet sequence? [0] or []?
-            if (string.IsNullOrEmpty(apu))
-                throw new ArgumentNullException(nameof(apu), "Cannot be null");
-            if (string.IsNullOrEmpty(apv))
-                throw new ArgumentNullException(nameof(apv), "Cannot be null");
-
             //The "apu" and "apv" values MUST be distinct when used (per rfc7518 section 4.6.2)
-            if (apu.Equals(apv, StringComparison.InvariantCulture))
+            if (!string.IsNullOrEmpty(apu)
+                && !string.IsNullOrEmpty(apv)
+                && apu.Equals(apv, StringComparison.InvariantCulture))
                 throw LogHelper.LogArgumentException<ArgumentException>(nameof(apu), $"{nameof(apu)} must be different from {nameof(apv)}.");
 
             int cekLength = _keyDataLen / 8; // number of octets
@@ -190,12 +185,11 @@ namespace Microsoft.IdentityModel.Tokens
             SetAppendBytes(apu, apv, out byte[] append);
             byte[] cek = new byte[cekLength];
             byte[] derivedKey = _ecdhPrivate.DeriveKeyFromHash(_ecdhPublic.PublicKey, HashAlgorithmName.SHA256, prepend, append);
-            
-            //_ecdh.Value.DeriveKeyFromHmac(otherPartyPublicKey, HashAlgorithmName.SHA256, salt, prepend, append);
+
             /* 
              * should we include customization here:
              * 1. Use someting different than HashAlgorithmName.SHA256
-             * 2. Use DeriveKeyFromHmac or DeriveKeyTls
+             * 2. Use DeriveKeyFromHmac or DeriveKeyTls //_ecdh.Value.DeriveKeyFromHmac(otherPartyPublicKey, HashAlgorithmName.SHA256, salt, prepend, append);
              */
             Array.Copy(derivedKey, cek, cekLength);
 
@@ -204,10 +198,9 @@ namespace Microsoft.IdentityModel.Tokens
 
         private void SetAppendBytes(string apu, string apv, out byte[] append)
         {
-            //encBytes if dir it should be the enc header param value, if kw it is the alg header param value
             byte[] encBytes = Encoding.ASCII.GetBytes(_algorithmId); //should it be using Base64UrlEncoder?
-            byte[] apuBytes = Base64UrlEncoder.DecodeBytes(apu);
-            byte[] apvBytes = Base64UrlEncoder.DecodeBytes(apv);
+            byte[] apuBytes = Base64UrlEncoder.DecodeBytes(string.IsNullOrEmpty(apu) ? string.Empty : apu);
+            byte[] apvBytes = Base64UrlEncoder.DecodeBytes(string.IsNullOrEmpty(apv) ? string.Empty : apv);
             byte[] numOctetsEnc = BitConverter.GetBytes(encBytes.Length);
             byte[] numOctetsApu = BitConverter.GetBytes(apuBytes.Length);
             byte[] numOctetsApv = BitConverter.GetBytes(apvBytes.Length);
@@ -227,7 +220,7 @@ namespace Microsoft.IdentityModel.Tokens
 
         private void GetKeyDataLenAndEncryptionAlgorithm(string alg, string enc = null)
         {
-            if (SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture))
+            if (SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture)) // dir or ECDH-ES
             {
                 _algorithmId = enc;
                 if (SecurityAlgorithms.Aes128Gcm.Equals(enc, StringComparison.InvariantCulture))
@@ -260,18 +253,14 @@ namespace Microsoft.IdentityModel.Tokens
         {
             if (string.IsNullOrEmpty(alg))
                 throw LogHelper.LogArgumentNullException(alg);
-            if (!SupportedAlgorithms.EcdsaWrapAlgorithms.Contains(alg))
-            {
-                if (SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture))
-                {
-                    if (string.IsNullOrEmpty(enc))
-                        throw LogHelper.LogArgumentNullException(nameof(enc));
-                    if (!SupportedAlgorithms.SymmetricEncryptionAlgorithms.Contains(enc))
-                        throw LogHelper.LogArgumentException<ArgumentException>(nameof(enc), $"{nameof(enc)} is not supported.");
-                }
-                else
-                    throw LogHelper.LogArgumentException<ArgumentException>(nameof(alg), $"{nameof(alg)} is not supported.");
-            }
+            if (string.IsNullOrEmpty(enc))
+                throw LogHelper.LogArgumentNullException(enc);
+
+            if (!SupportedAlgorithms.EcdsaWrapAlgorithms.Contains(alg) && !SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture))
+                throw LogHelper.LogArgumentException<ArgumentException>(nameof(alg), $"{nameof(alg)} is not supported.");
+
+            if (!SupportedAlgorithms.SymmetricEncryptionAlgorithms.Contains(enc))
+                throw LogHelper.LogArgumentException<ArgumentException>(nameof(enc), $"{nameof(enc)} is not supported.");
         }
 
         private void Initialize()
