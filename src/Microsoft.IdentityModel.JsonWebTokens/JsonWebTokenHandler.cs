@@ -819,8 +819,8 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             if (keys == null)
                 keys = JwtTokenUtilities.GetAllDecryptionKeys(validationParameters);
 
-            // do we expand to include (jwtToken.Alg == ECDH-ES)
-            if (jwtToken.Alg.Equals(JwtConstants.DirectKeyUseAlg, StringComparison.Ordinal))
+            if (jwtToken.Alg.Equals(JwtConstants.DirectKeyUseAlg, StringComparison.Ordinal)
+                || jwtToken.Alg.Equals(SecurityAlgorithms.EcdhEs, StringComparison.Ordinal))
                 return keys;
 
             var unwrappedKeys = new List<SecurityKey>();
@@ -867,9 +867,20 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             if (validationParameters == null)
                 throw LogHelper.LogArgumentNullException(nameof(validationParameters));
 
-            // need to add logic here for ECDH-ES
-            // use EcdhKeyExchangeProvider to get key that will unwrap the CEK in the JWE header.
-
+#if NET472
+            if (jwtToken.TryGetHeaderValue<string>(JwtHeaderParameterNames.Epk, out string epk) && validationParameters.TokenDecryptionKey is ECDsaSecurityKey)
+            {
+                var jwk = new JsonWebKey(epk);
+                string alg = jwtToken.Alg;
+                string enc = jwtToken.Enc;
+                var ecdhKeyExchangeProvider = new EcdhKeyExchangeProvider(validationParameters.TokenDecryptionKey as ECDsaSecurityKey, jwk, alg, enc);
+                jwtToken.TryGetHeaderValue(JwtHeaderParameterNames.Apu, out string apu);
+                jwtToken.TryGetHeaderValue(JwtHeaderParameterNames.Apv, out string apv);
+                SecurityKey key = ecdhKeyExchangeProvider.GenerateCek(apu, apv);
+                if (key != null)
+                    return key;
+            }
+#endif
             if (!string.IsNullOrEmpty(jwtToken.Kid))
             {
                 if (validationParameters.TokenDecryptionKey != null

@@ -105,7 +105,10 @@ namespace Microsoft.IdentityModel.Tokens
             SecurityAlgorithms.Aes128KW,
             SecurityAlgorithms.Aes128KeyWrap,
             SecurityAlgorithms.Aes256KW,
-            SecurityAlgorithms.Aes256KeyWrap
+            SecurityAlgorithms.Aes256KeyWrap,
+            SecurityAlgorithms.EcdhEsA128kw,
+            SecurityAlgorithms.EcdhEsA192kw,
+            SecurityAlgorithms.EcdhEsA256kw
         };
 
         internal static readonly ICollection<string> SymmetricSigningAlgorithms = new Collection<string>
@@ -122,7 +125,7 @@ namespace Microsoft.IdentityModel.Tokens
         {
             SecurityAlgorithms.EcdhEsA128kw,
             SecurityAlgorithms.EcdhEsA192kw,
-            SecurityAlgorithms.EcdhEsA256kw,
+            SecurityAlgorithms.EcdhEsA256kw
         };
 
 #if NET461 || NET472 || NETSTANDARD2_0
