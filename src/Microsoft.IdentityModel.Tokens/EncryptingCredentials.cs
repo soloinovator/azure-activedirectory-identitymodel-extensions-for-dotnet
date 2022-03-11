@@ -110,6 +110,11 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        public JsonWebKey JsonWebKey { get; set; }
+
+        /// <summary>
         /// Users can override the default <see cref="CryptoProviderFactory"/> with this property. This factory will be used for creating encryption providers.
         /// </summary>
         public CryptoProviderFactory CryptoProviderFactory { get; set; }

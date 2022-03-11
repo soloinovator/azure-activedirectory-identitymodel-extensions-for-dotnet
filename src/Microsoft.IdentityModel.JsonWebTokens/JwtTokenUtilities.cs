@@ -292,10 +292,19 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
                 securityKey = encryptingCredentials.Key;
             }
-            else if (SecurityAlgorithms.EcdhEsA128kw.Equals(encryptingCredentials.Alg, StringComparison.Ordinal))
+#if NET472
+            else if (SecurityAlgorithms.EcdhEsA256kw.Equals(encryptingCredentials.Alg, StringComparison.Ordinal))
             {
+                // on decryption we get the public key from the EPK value see: https://datatracker.ietf.org/doc/html/rfc7518#appendix-C
+                EcdhKeyExchangeProvider ecdhKeyExchangeProvider = new EcdhKeyExchangeProvider(encryptingCredentials.Key as ECDsaSecurityKey, encryptingCredentials.JsonWebKey, encryptingCredentials.Alg, encryptingCredentials.Enc);
+                SecurityKey KDF = ecdhKeyExchangeProvider.GenerateCek();
+                kwProvider = cryptoProviderFactory.CreateKeyWrapProvider(KDF, SecurityAlgorithms.Aes256KeyWrap);
+                SecurityKey cek = new SymmetricSecurityKey(JwtTokenUtilities.GenerateKeyBytes(256));
+                wrappedKey = kwProvider.WrapKey(((SymmetricSecurityKey)cek).Key);
+                return cek;
                 //create agreen upon key = SharedPubicKey * Curve * private 
             }
+#endif
             else
             {
                 if (!cryptoProviderFactory.IsSupportedAlgorithm(encryptingCredentials.Alg, encryptingCredentials.Key))

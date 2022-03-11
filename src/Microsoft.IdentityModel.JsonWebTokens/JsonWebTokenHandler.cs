@@ -762,6 +762,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 if (encryptionProvider == null)
                     throw LogHelper.LogExceptionMessage(new SecurityTokenEncryptionFailedException(LogMessages.IDX14103));
 
+                // we will have to make changes to creteing the JWE header and add the epk value as per https://datatracker.ietf.org/doc/html/rfc7518#section-4.1 and see example here: https://datatracker.ietf.org/doc/html/rfc7518#appendix-C
                 var header = CreateDefaultJWEHeader(encryptingCredentials, compressionAlgorithm, tokenType);
 
                 if (additionalHeaderClaims != null)
@@ -811,6 +812,9 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 if (key != null)
                     keys = new List<SecurityKey> { key };
             }
+
+            // on decryption for ECDH-ES, we get the public key from the EPK value see: https://datatracker.ietf.org/doc/html/rfc7518#appendix-C
+            // we need the ECDSASecurityKey for the receiver, use TokenValidationParameters.TokenDecryptionKey
 
             // control gets here if:
             // 1. User specified delegate: TokenDecryptionKeyResolver returned null
