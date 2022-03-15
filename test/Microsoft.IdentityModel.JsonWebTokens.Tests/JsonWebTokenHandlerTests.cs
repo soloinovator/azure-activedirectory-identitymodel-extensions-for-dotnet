@@ -532,7 +532,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens.Tests
                 tokenHandler.InboundClaimTypeMap.Clear();
                 return new TheoryData<CreateTokenTheoryData>
                 {
-                    new CreateTokenTheoryData
+                    new CreateTokenTheoryData("TestCase1")
                     {
                         TokenDescriptor =  new SecurityTokenDescriptor
                         {
@@ -551,7 +551,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens.Tests
                             ValidIssuer = Default.Issuer
                         }
                     },
-                    new CreateTokenTheoryData
+                    new CreateTokenTheoryData("TestCase2")
                     {
                         Payload = Default.PayloadString,
                         TokenDescriptor =  new SecurityTokenDescriptor
@@ -570,7 +570,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens.Tests
                             ValidIssuer = Default.Issuer
                         }
                     },
-                    new CreateTokenTheoryData
+                    new CreateTokenTheoryData("TestCase3")
                     {
                         Payload = Default.PayloadString,
                         TokenDescriptor =  new SecurityTokenDescriptor
@@ -3154,6 +3154,15 @@ namespace Microsoft.IdentityModel.JsonWebTokens.Tests
 
     public class CreateTokenTheoryData : TheoryDataBase
     {
+        public CreateTokenTheoryData()
+        {
+        }
+
+        public CreateTokenTheoryData(string testId)
+        {
+            TestId = testId;
+        }
+
         public Dictionary<string, object> AdditionalHeaderClaims { get; set; }
 
         public string Payload { get; set; }

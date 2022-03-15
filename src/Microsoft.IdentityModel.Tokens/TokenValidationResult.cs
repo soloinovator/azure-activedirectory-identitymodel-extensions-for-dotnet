@@ -34,42 +34,37 @@ namespace Microsoft.IdentityModel.Tokens
 {
     /// <summary>
     /// Contains artifacts obtained when a SecurityToken is validated.
+    /// A SecurityTokenHandler returns an instance that captures the results of validating a token.
     /// </summary>
     public class TokenValidationResult
     {
         private Lazy<IDictionary<string, object>> _claims;
-        private Lazy<ClaimsIdentity> _claimsIdentity;
-        private IClaimProvider _claimProvider;
-        private ClaimsIdentity _ciSet;
+        private ClaimsIdentity _claimsIdentity;
         private Exception _exception;
-        private bool _isValid;
         private bool _hasIsValidOrExceptionBeenRead = false;
+        private bool _isValid = false;
         private TokenValidationParameters _validationParameters;
-        private bool _wasClaimsIdentitySet;
 
         /// <summary>
-        ///
+        /// Creates an instance of <see cref="TokenValidationResult"/>
         /// </summary>
         public TokenValidationResult()
         {
-            _claims = new Lazy<IDictionary<string, object>>(() => TokenUtilities.CreateDictionaryFromClaims(ClaimsIdentity?.Claims));
+            Initialize();
         }
 
+        /// <summary>
+        /// This ctor is used by the JsonWebTokenHandler as part of delaying creation of ClaimsIdentity.
+        /// </summary>
+        /// <param name="securityToken"></param>
+        /// <param name="validationParameters"></param>
+        /// <param name="issuer"></param>
         internal TokenValidationResult(SecurityToken securityToken, TokenValidationParameters validationParameters, string issuer)
         {
-            _validationParameters = validationParameters;
-            _claimProvider = securityToken as IClaimProvider;
+            _validationParameters = validationParameters.Clone();
             Issuer = issuer;
             SecurityToken = securityToken;
-             _claimsIdentity = new Lazy<ClaimsIdentity>(() => ClaimsIdentityFactory());
-            if (_claimProvider != null)
-            {
-                _claims = new Lazy<IDictionary<string, object>>(() => _claimProvider.ClaimsIdentityProperties);
-            }
-            else
-            {
-                _claims = new Lazy<IDictionary<string, object>>(() => TokenUtilities.CreateDictionaryFromClaims(ClaimsIdentity?.Claims));
-            }
+            Initialize();
         }
 
         /// <summary>
@@ -93,63 +88,33 @@ namespace Microsoft.IdentityModel.Tokens
         {
             get
             {
-                if (_wasClaimsIdentitySet)
-                    return _ciSet;
+                if (_claimsIdentity == null)
+                    _claimsIdentity = CreateClaimsIdentity();
 
-                if (_claimProvider != null)
-                    return _claimsIdentity.Value;
-
-                return null;
+                return _claimsIdentity;
             }
-
             set
             {
-                _ciSet = value;
-                _wasClaimsIdentitySet = true;
+                _claimsIdentity = value ?? throw LogHelper.LogArgumentNullException(nameof(value));
             }
         }
 
-        private ClaimsIdentity ClaimsIdentityFactory()
+        /// <summary>
+        /// This call is for JWTs, SamlTokenHandler will set the ClaimsPrincipal.
+        /// </summary>
+        /// <returns></returns>
+        private ClaimsIdentity CreateClaimsIdentity()
         {
             ClaimsIdentity claimsIdentity = _validationParameters.CreateClaimsIdentity(SecurityToken, Issuer);
-            foreach (Claim jwtClaim in _claimProvider.Claims)
-            {
-                string claimType = jwtClaim.Type;
-                // TODO this is not the actor token, need to create the SecurityToken representing actor.
-                if (claimType == ClaimTypes.Actor)
-                {
-                    if (claimsIdentity.Actor != null)
-                        throw LogHelper.LogExceptionMessage(new InvalidOperationException(LogHelper.FormatInvariant("LogMessages.IDX14112, JwtRegisteredClaimNames.Actort, jwtClaim.Value")));
 
-                    ClaimsIdentity actorClaimsIdentity = _validationParameters.CreateClaimsIdentity(SecurityToken, Issuer);
-                    foreach (Claim actClaim in _claimProvider.ActorClaims)
-                    {
-                        AddClaim(claimsIdentity, actClaim);
-                    }
+            if (SecurityToken is not IClaimProvider claimProvider)
+                throw LogHelper.LogArgumentNullException(nameof(IClaimProvider));
 
-                    claimsIdentity.Actor = actorClaimsIdentity;
-                }
+            IEnumerable<Claim> claims = claimProvider.Claims;
 
-                AddClaim(claimsIdentity, jwtClaim);
-            }
+            claimsIdentity.AddClaims(claims);
 
             return claimsIdentity;
-        }
-
-        private void AddClaim(ClaimsIdentity ci, Claim claim)
-        {
-            if (claim.Properties.Count == 0)
-            {
-                ci.AddClaim(new Claim(claim.Type, claim.Value, claim.ValueType, Issuer, Issuer, ci));
-            }
-            else
-            {
-                Claim c = new Claim(claim.Type, claim.Value, claim.ValueType, Issuer, Issuer, ci);
-                foreach (var kv in claim.Properties)
-                    c.Properties[kv.Key] = kv.Value;
-
-                ci.AddClaim(c);
-            }
         }
 
         /// <summary>
@@ -166,6 +131,11 @@ namespace Microsoft.IdentityModel.Tokens
             {
                 _exception = value;
             }
+        }
+
+        private void Initialize()
+        {
+            _claims = new Lazy<IDictionary<string, object>>(() => TokenUtilities.CreateDictionaryFromClaims(ClaimsIdentity.Claims));
         }
 
         /// <summary>

@@ -34,6 +34,10 @@ using Microsoft.IdentityModel.Json.Linq;
 using Microsoft.IdentityModel.TestUtils;
 using Xunit;
 
+#if NET452
+using JsonClaimSet = Microsoft.IdentityModel.JsonWebTokens.JsonClaimSet45;
+#endif
+
 #pragma warning disable CS3016 // Arrays as attribute arguments is not CLS-compliant
 
 namespace Microsoft.IdentityModel.JsonWebTokens.Tests

@@ -36,6 +36,7 @@ using Microsoft.IdentityModel.Tokens;
 #if NET45
 using Microsoft.IdentityModel.Json;
 using Microsoft.IdentityModel.Json.Linq;
+using JsonClaimSet = Microsoft.IdentityModel.JsonWebTokens.JsonClaimSet45;
 #else
 using System.Text.Json;
 #endif
@@ -45,11 +46,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
     /// <summary>
     /// A <see cref="SecurityToken"/> designed for representing a JSON Web Token (JWT). 
     /// </summary>
-#if NET45
-    public class JsonWebToken : SecurityToken
-#else
-    public class JsonWebToken : SecurityToken, IClaimProvider
-#endif
+    public class JsonWebToken : SecurityToken, IClaimProvider, IJsonClaimSet
     {
         private char[] _hChars;
         private char[] _pChars;
@@ -459,24 +456,6 @@ namespace Microsoft.IdentityModel.JsonWebTokens
         public string Actor => _act.Value;
 
         /// <summary>
-        /// Gets a <see cref="IEnumerable{Claim}"/> where each claim in the JWT { name, value } is returned as a <see cref="Claim"/>.
-        /// </summary>
-        /// <remarks>
-        /// A <see cref="Claim"/> requires each value to be represented as a string. If the value was not a string, then <see cref="Claim.Type"/> contains the json type.
-        /// <see cref="JsonClaimValueTypes"/> and <see cref="ClaimValueTypes"/> to determine the json type.
-        /// </remarks>
-        public virtual IEnumerable<Claim> ActorClaims
-        {
-            get
-            {
-                if (InnerToken != null)
-                    return InnerToken.Claims;
-
-                return Payload.Claims(Issuer ?? ClaimsIdentity.DefaultIssuer);
-            }
-        }
-
-        /// <summary>
         /// Gets the 'value' of the 'alg' claim from the header.
         /// </summary>
         /// <remarks>
@@ -685,7 +664,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
         /// The expectation is that the 'value' corresponds to a type expected in a JWT token.
         /// </remarks>
         /// <returns>true if successful, false otherwise.</returns>
-        public bool TryGetClaimValue<T>(string key, out T value)
+        public bool TryGetValue<T>(string key, out T value)
         {
             if (string.IsNullOrEmpty(key))
             {

@@ -67,6 +67,22 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             return _claims;
         }
 
+        // TODO - use lazy.
+        internal IList<Claim> CreateClaims(string issuer)
+        {
+            IList<Claim> claims = new List<Claim>();
+            foreach (JsonProperty property in RootElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.Array)
+                    foreach (JsonElement jsonElement in property.Value.EnumerateArray())
+                        claims.Add(CreateClaimFromJsonElement(property.Name, jsonElement, issuer));
+                else
+                    claims.Add(CreateClaimFromJsonElement(property.Name, property.Value, issuer));
+            }
+
+            return claims;
+        }
+
         private static Claim CreateClaimFromJsonElement(string key, JsonElement jsonElement, string issuer)
         {
             // Json.net recognized DateTime by default.

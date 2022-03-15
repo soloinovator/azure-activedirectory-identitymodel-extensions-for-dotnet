@@ -15,21 +15,21 @@ using Microsoft.IdentityModel.Json;
 
 namespace Microsoft.IdentityModel.JsonWebTokens
 {
-    internal class JsonClaimSet
+    internal class JsonClaimSet45
     {
         IList<Claim> _claims;
 
-        public JsonClaimSet()
+        public JsonClaimSet45()
         {
             RootElement = new JObject();
         }
 
-        public JsonClaimSet(byte[] jsonBytes)
+        public JsonClaimSet45(byte[] jsonBytes)
         {
             RootElement = JObject.Parse(Encoding.UTF8.GetString(jsonBytes));
         }
 
-        public JsonClaimSet(string json)
+        public JsonClaimSet45(string json)
         {
             RootElement = JObject.Parse(json);
         }
@@ -40,6 +40,38 @@ namespace Microsoft.IdentityModel.JsonWebTokens
         }
 
         public JObject RootElement { get; }
+
+        internal IList<Claim> CreateClaims(string issuer)
+        {
+            IList<Claim> claims = new List<Claim>();
+
+            // there is some code redundancy here that was not factored as this is a high use method. Each identity received from the host will pass through here.
+            foreach (var entry in RootElement)
+            {
+                if (entry.Value == null)
+                {
+                    claims.Add(new Claim(entry.Key, string.Empty, JsonClaimValueTypes.JsonNull, issuer, issuer));
+                    continue;
+                }
+
+                if (entry.Value.Type is JTokenType.String)
+                {
+                    var claimValue = entry.Value.ToObject<string>();
+                    claims.Add(new Claim(entry.Key, claimValue, ClaimValueTypes.String, issuer, issuer));
+                    continue;
+                }
+
+                var jtoken = entry.Value;
+                if (jtoken != null)
+                {
+                    AddClaimsFromJToken(claims, entry.Key, jtoken, issuer);
+                    continue;
+                }
+            }
+
+            return claims;
+        }
+
 
         internal IList<Claim> Claims(string issuer)
         {
@@ -148,10 +180,10 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 else if (jvalue.Value is DateTime dateTimeValue)
                     claims.Add(new Claim(claimType, dateTimeValue.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture), ClaimValueTypes.DateTime, issuer, issuer));
                 else
-                    claims.Add(new Claim(claimType, jtoken.ToString(Formatting.None), JsonClaimSet.GetClaimValueType(jvalue.Value), issuer, issuer));
+                    claims.Add(new Claim(claimType, jtoken.ToString(Formatting.None), JsonClaimSet45.GetClaimValueType(jvalue.Value), issuer, issuer));
             }
             else
-                claims.Add(new Claim(claimType, jtoken.ToString(Formatting.None), JsonClaimSet.GetClaimValueType(jtoken), issuer, issuer));
+                claims.Add(new Claim(claimType, jtoken.ToString(Formatting.None), JsonClaimSet45.GetClaimValueType(jtoken), issuer, issuer));
         }
 
         internal bool TryGetClaim(string key, string issuer, out Claim claim)
