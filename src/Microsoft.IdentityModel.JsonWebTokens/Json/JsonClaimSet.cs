@@ -19,25 +19,29 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 {
     internal class JsonClaimSet
     {
-        IList<Claim> _claims;
-        Lazy<IDictionary<string, object>> _claimProperties;
-
+        private Lazy<IDictionary<string, object>> _claimProperties;
+        private IList<Claim> _claims;
         private static Type _typeofDateTime = typeof(DateTime);
 
         internal JsonClaimSet()
         {
-            _claimProperties = new Lazy<IDictionary<string, object>>(GetClaimsIdentityProperties);
+            Initialize();
         }
 
         internal JsonClaimSet(byte[] jsonBytes)
         {
+            Initialize();
             RootElement = JsonDocument.Parse(jsonBytes).RootElement;
-            _claimProperties = new Lazy<IDictionary<string, object>>(GetClaimsIdentityProperties);
         }
 
         internal JsonClaimSet(string json)
         {
+            Initialize();
             RootElement = JsonDocument.Parse(json).RootElement;
+        }
+
+        private void Initialize()
+        {
             _claimProperties = new Lazy<IDictionary<string, object>>(GetClaimsIdentityProperties);
         }
 
@@ -59,9 +63,9 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             {
                 if (property.Value.ValueKind == JsonValueKind.Array)
                     foreach (JsonElement jsonElement in property.Value.EnumerateArray())
-                       _claims.Add(CreateClaimFromJsonElement(property.Name, jsonElement, issuer));
+                       _claims.Add(CreateClaimFromJsonElement(property.Name, issuer, jsonElement));
                 else
-                    _claims.Add(CreateClaimFromJsonElement(property.Name, property.Value, issuer));
+                    _claims.Add(CreateClaimFromJsonElement(property.Name, issuer, property.Value));
             }
 
             return _claims;
@@ -75,15 +79,15 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             {
                 if (property.Value.ValueKind == JsonValueKind.Array)
                     foreach (JsonElement jsonElement in property.Value.EnumerateArray())
-                        claims.Add(CreateClaimFromJsonElement(property.Name, jsonElement, issuer));
+                        claims.Add(CreateClaimFromJsonElement(property.Name, issuer, jsonElement));
                 else
-                    claims.Add(CreateClaimFromJsonElement(property.Name, property.Value, issuer));
+                    claims.Add(CreateClaimFromJsonElement(property.Name, issuer, property.Value));
             }
 
             return claims;
         }
 
-        private static Claim CreateClaimFromJsonElement(string key, JsonElement jsonElement, string issuer)
+        private static Claim CreateClaimFromJsonElement(string key, string issuer, JsonElement jsonElement)
         {
             // Json.net recognized DateTime by default.
             if (jsonElement.ValueKind == JsonValueKind.String)
@@ -185,7 +189,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             if (!RootElement.TryGetProperty(key, out JsonElement jsonElement))
                 throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14304, key)));
 
-            return CreateClaimFromJsonElement(key, jsonElement, issuer);
+            return CreateClaimFromJsonElement(key, issuer, jsonElement);
         }
 
         internal static string GetClaimValueType(object obj)
@@ -237,7 +241,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             return EpochTime.DateTime(Convert.ToInt64(Math.Truncate(Convert.ToDouble(ParseTimeValue(key, jsonElement), CultureInfo.InvariantCulture))));
         }
 
-        public T GetValue<T>(string key)
+        internal T GetValue<T>(string key)
         {
             return GetValue<T>(key, true, out bool _);
         }
@@ -360,7 +364,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 return false;
             }
 
-            claim = CreateClaimFromJsonElement(key, jsonElement, issuer);
+            claim = CreateClaimFromJsonElement(key, issuer, jsonElement);
             return true;
         }
 

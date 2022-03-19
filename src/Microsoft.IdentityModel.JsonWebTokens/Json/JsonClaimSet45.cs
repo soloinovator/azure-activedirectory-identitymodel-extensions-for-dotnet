@@ -19,27 +19,27 @@ namespace Microsoft.IdentityModel.JsonWebTokens
     {
         IList<Claim> _claims;
 
-        public JsonClaimSet45()
+        internal JsonClaimSet45()
         {
             RootElement = new JObject();
         }
 
-        public JsonClaimSet45(byte[] jsonBytes)
+        internal JsonClaimSet45(byte[] jsonBytes)
         {
             RootElement = JObject.Parse(Encoding.UTF8.GetString(jsonBytes));
         }
 
-        public JsonClaimSet45(string json)
+        internal JsonClaimSet45(string json)
         {
             RootElement = JObject.Parse(json);
         }
 
-        public bool TryGetValue(string claimName, out JToken json)
+        internal bool TryGetValue(string claimName, out JToken json)
         {
             return RootElement.TryGetValue(claimName, out json);
         }
 
-        public JObject RootElement { get; }
+        private JObject RootElement { get; }
 
         internal IList<Claim> CreateClaims(string issuer)
         {
@@ -209,7 +209,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             return CreateClaimFromJToken(key, issuer, jTokenValue);
         }
 
-        public static string GetClaimValueType(object obj)
+        internal static string GetClaimValueType(object obj)
         {
             if (obj == null)
                 return JsonClaimValueTypes.JsonNull;
@@ -264,7 +264,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             return EpochTime.DateTime(Convert.ToInt64(Math.Truncate(Convert.ToDouble(ParseTimeValue(key, jToken), CultureInfo.InvariantCulture))));
         }
 
-        public T GetValue<T>(string key)
+        internal T GetValue<T>(string key)
         {
             if (!RootElement.TryGetValue(key, out var jTokenValue))
                 throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14304, key)));
@@ -292,7 +292,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
             return value;
         }
 
-        public bool TryGetValue<T>(string key, out T value)
+        internal bool TryGetValue<T>(string key, out T value)
         {
             if (RootElement.TryGetValue(key, out var jTokenValue))
             {
