@@ -1,29 +1,5 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -33,35 +9,43 @@ namespace Microsoft.IdentityModel.Abstractions
     /// <summary>
     /// The default implementation of the <see cref="ITelemetryClient"/> interface which swallows all telemetry signals.
     /// </summary>
-    internal class NullTelemetryClient : ITelemetryClient
+    public class NullTelemetryClient : TelemetryClient
     {
         /// <summary>
         /// Singleton instance of <see cref="NullTelemetryClient"/>.
         /// </summary>
         public static NullTelemetryClient Instance { get; } = new NullTelemetryClient();
 
-        /// <inheritdoc />
-        public Guid ClientId { get; set; }
-
         private NullTelemetryClient() { }
 
         /// <inheritdoc />
-        public bool IsEnabled() => false;
-
-        /// <inheritdoc />
-        public bool IsEnabled(string eventName) => false;
+        public override bool IsEnabled() => false;
 
         /// <inheritdoc/>
-        public void Initialize()
+        public override bool IsEnabled(string eventName) => false;
+
+        /// <inheritdoc/>
+        public override void Initialize()
         {
             // no-op
         }
 
         /// <inheritdoc/>
-        public void TrackEvent(
+        public override void TrackEvent(EventDetails eventDetails)
+        {
+            // no-op
+        }
+
+        /// <inheritdoc/>
+        public override void TrackEvent(
             string eventName,
-            Dictionary<string, string> eventDetails,
-            Dictionary<string, double> eventMetrics)
+            Dictionary<string, string> stringProperties = null,
+            Dictionary<string, long> longProperties = null,
+            Dictionary<string, bool> boolProperties = null,
+            Dictionary<string, DateTime> DateTimeProperties = null,
+            Dictionary<string, double> doubleProperties = null,
+            Dictionary<string, Guid> guidProperties = null,
+            Dictionary<string, DataClassification> dataClassificationMapping = null)
         {
             // no-op
         }
