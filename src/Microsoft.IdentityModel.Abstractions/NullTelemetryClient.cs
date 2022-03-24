@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace Microsoft.IdentityModel.Abstractions
 {
     /// <summary>
-    /// The default implementation of the <see cref="ITelemetryClient"/> interface which swallows all telemetry signals.
+    /// The default implementation of the <see cref="TelemetryClient"/> abstract class which swallows all telemetry signals.
     /// </summary>
     public class NullTelemetryClient : TelemetryClient
     {

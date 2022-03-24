@@ -6,7 +6,7 @@ namespace Microsoft.IdentityModel.Abstractions
     /// <summary>
     /// Common class containing observability constants.
     /// </summary>
-    public class ObservabilityConstants
+    public static class ObservabilityConstants
     {
         /// <summary>
         /// String used for the name of the property indicating if the call was successful.
