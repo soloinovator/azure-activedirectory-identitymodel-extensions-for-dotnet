@@ -9,6 +9,10 @@ namespace Microsoft.IdentityModel.Abstractions
     /// <summary>
     /// Details of the telemetry event.
     /// </summary>
+    /// <remarks>
+    /// This implementation is not meant to be thread-safe. This implementation would either need to be overridden or
+    /// usage should not be concurrently operated on.
+    /// </remarks>
     public abstract class EventDetails
     {
         internal Dictionary<string, DataClassification> DataClassificationMapping = new Dictionary<string, DataClassification>();

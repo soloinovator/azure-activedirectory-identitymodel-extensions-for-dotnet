@@ -7,10 +7,13 @@ using System.Collections.Generic;
 namespace Microsoft.IdentityModel.Abstractions
 {
     /// <summary>
-    /// The default implementation of the <see cref="TelemetryClient"/> abstract class which swallows all telemetry signals.
+    /// The default implementation of the <see cref="ITelemetryClient"/> interface which swallows all telemetry signals.
     /// </summary>
-    public class NullTelemetryClient : TelemetryClient
+    public class NullTelemetryClient : ITelemetryClient
     {
+        /// <inheritdoc />
+        public Guid ClientId { get; set; }
+
         /// <summary>
         /// Singleton instance of <see cref="NullTelemetryClient"/>.
         /// </summary>
@@ -19,25 +22,25 @@ namespace Microsoft.IdentityModel.Abstractions
         private NullTelemetryClient() { }
 
         /// <inheritdoc />
-        public override bool IsEnabled() => false;
+        public bool IsEnabled() => false;
 
         /// <inheritdoc/>
-        public override bool IsEnabled(string eventName) => false;
+        public bool IsEnabled(string eventName) => false;
 
         /// <inheritdoc/>
-        public override void Initialize()
+        public void Initialize()
         {
             // no-op
         }
 
         /// <inheritdoc/>
-        public override void TrackEvent(EventDetails eventDetails)
+        public void TrackEvent(EventDetails eventDetails)
         {
             // no-op
         }
 
         /// <inheritdoc/>
-        public override void TrackEvent(
+        public void TrackEvent(
             string eventName,
             Dictionary<string, string> stringProperties = null,
             Dictionary<string, long> longProperties = null,

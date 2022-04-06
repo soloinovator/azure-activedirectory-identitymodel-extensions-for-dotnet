@@ -8,6 +8,8 @@ namespace Microsoft.IdentityModel.Abstractions
     /// </summary>
     /// <remarks>
     /// See http://aka.ms/AssetClassificationStandard for more details about the asset classification standard.
+    /// This is meant to identify the most consequential classification level (e.g. if an entry contains public data
+    /// and EUII, it should be classified as EUII).
     /// </remarks>
     public enum DataClassification
     {

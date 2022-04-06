@@ -4,7 +4,7 @@
 namespace Microsoft.IdentityModel.Abstractions
 {
     /// <summary>
-    /// Common class containing observability constants.
+    /// Common class containing observability constants to be used as well known metric keys.
     /// </summary>
     public static class ObservabilityConstants
     {

@@ -9,12 +9,12 @@ namespace Microsoft.IdentityModel.Abstractions
     /// <summary>
     /// Interface for Telemetry tracking.
     /// </summary>
-    public abstract class TelemetryClient
+    public interface ITelemetryClient
     {
         /// <summary>
         /// Gets or sets the application or client ID that telemetry is being sent for.
         /// </summary>
-        public Guid ClientId { get; set; }
+        Guid ClientId { get; set; }
 
         /// <summary>
         /// Perform any necessary bootstrapping for the telemetry client.
@@ -23,7 +23,7 @@ namespace Microsoft.IdentityModel.Abstractions
         /// The expectation is that this should only be called once for the lifetime of the object however the
         /// implementation should be idempotent.
         /// </remarks>
-        public abstract void Initialize();
+        void Initialize();
 
         /// <summary>
         /// Checks to see if telemetry is enabled all up.
@@ -34,7 +34,7 @@ namespace Microsoft.IdentityModel.Abstractions
         /// <remarks>
         /// This check should be used to gate any resource intensive operations to generate telemetry as well.
         /// </remarks>
-        public abstract bool IsEnabled();
+        bool IsEnabled();
 
         /// <summary>
         /// Checks to see if telemetry is enabled for the named event.
@@ -47,13 +47,13 @@ namespace Microsoft.IdentityModel.Abstractions
         /// <remarks>
         /// This check should be used to gate any resource intensive operations to generate telemetry as well.
         /// </remarks>
-        public abstract bool IsEnabled(string eventName);
+        bool IsEnabled(string eventName);
 
         /// <summary>
         /// Tracks an instance of a named event.
         /// </summary>
         /// <param name="eventDetails">Details of the event to track.</param>
-        public abstract void TrackEvent(
+        void TrackEvent(
             EventDetails eventDetails);
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Microsoft.IdentityModel.Abstractions
         /// <param name="dataClassificationMapping">
         /// Mapping between keys across all property dictionaries to data classification.
         /// </param>
-        public abstract void TrackEvent(
+        void TrackEvent(
             string eventName,
             Dictionary<string, string> stringProperties = null,
             Dictionary<string, long> longProperties = null,
