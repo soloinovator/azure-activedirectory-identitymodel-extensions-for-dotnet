@@ -594,6 +594,14 @@ namespace Microsoft.IdentityModel.TestUtils
                 }
               }";
 
+        public static string Alg = "ECDH-ES";
+
+        public static string Enc = "A128GCM";
+
+        public static string Apu = "QWxpY2U";
+
+        public static string Apv = "Qm9i";
+
         public static int KeyDataLen = 128;
 
         public static byte[] PartyUInfo = new byte[] { 0, 0, 0, 5, 65, 108, 105, 99, 101 };

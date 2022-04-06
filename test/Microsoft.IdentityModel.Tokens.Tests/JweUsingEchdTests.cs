@@ -25,9 +25,12 @@
 //
 //------------------------------------------------------------------------------
 
-#if !(NET452 || NET461)
+#if NET472
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using Microsoft.IdentityModel.Json.Linq;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.TestUtils;
 using Microsoft.IdentityModel.Tokens;
@@ -51,12 +54,20 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                 JsonWebTokenHandler jsonWebTokenHandler = new JsonWebTokenHandler();
 
                 // Do we need an extension to EncryptingCredentials for: ApuSender, ApvSender
-                string jwe = jsonWebTokenHandler.CreateToken(Default.PayloadString, Default.AsymmetricSigningCredentials, theoryData.EncryptingCredentials);
+                string jwe = jsonWebTokenHandler.CreateToken(
+                    Default.PayloadString,
+                    Default.AsymmetricSigningCredentials,
+                    theoryData.EncryptingCredentials,
+                    theoryData.AdditionalHeaderParams);
+
                 JsonWebToken jsonWebToken = new JsonWebToken(jwe);
                 // we need the ECDSASecurityKey for the receiver to validate, use TokenValidationParameters.TokenDecryptionKey
                 TokenValidationResult tokenValidationResult = jsonWebTokenHandler.ValidateToken(jwe, theoryData.TokenValidationParameters);
 
                 // adjusted for theoryData.ExpectedException == tokenValidationResult.Exception
+                if (tokenValidationResult.IsValid != theoryData.ExpectedIsValid)
+                    context.AddDiff($"tokenValidationResult.IsValid != theoryData.ExpectedIsValid");
+
                 theoryData.ExpectedException.ProcessNoException(context);
             }
             catch (Exception ex)
@@ -71,25 +82,210 @@ namespace Microsoft.IdentityModel.Tokens.Tests
         {
             get
             {
-            
+
                 TheoryData<CreateEcdhEsTheoryData> theoryData = new TheoryData<CreateEcdhEsTheoryData>();
-               
-                CreateEcdhEsTheoryData testData = new CreateEcdhEsTheoryData("JsonWebKeyP256")
-                {
-                    EncryptingCredentials = new EncryptingCredentials(KeyingMaterial.Ecdsa256Key, SecurityAlgorithms.EcdhEsA256kw, SecurityAlgorithms.Aes128CbcHmacSha256){  JsonWebKey = KeyingMaterial.JsonWebKeyP256_Public },
-                    PublicKeyReceiver = KeyingMaterial.JsonWebKeyP256_Public,
-                    PublicKeySender = KeyingMaterial.JsonWebKeyP256_Public,
-                    PrivateKeyReceiver = KeyingMaterial.JsonWebKeyP256,
-                };
 
-                // APU, APV different
-
-                theoryData.Add(testData);
+                theoryData.Add(EcdhEsCurveP256AEnc256KW());
+                theoryData.Add(EcdhEsCurveP384EncA256KW());
+                theoryData.Add(EcdhEsCurveP512EncA256KW());
+                theoryData.Add(EcdhEsCurveP256EncA192KW()); 
+                theoryData.Add(EcdhEsCurveP256EncA128KW());
 
                 return theoryData;
             }
         }
 
+        private static CreateEcdhEsTheoryData EcdhEsCurveP256AEnc256KW()
+        {
+            CreateEcdhEsTheoryData testData = new CreateEcdhEsTheoryData("EcdhEsCurveP256AEnc256KW")
+            {
+                EncryptingCredentials = new EncryptingCredentials(
+                                    new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP256, true),
+                                    SecurityAlgorithms.EcdhEsA256kw,
+                                    SecurityAlgorithms.Aes128CbcHmacSha256)
+                {
+                    JsonWebKey = KeyingMaterial.JsonWebKeyP256_Public
+                },
+                PublicKeyReceiver = KeyingMaterial.JsonWebKeyP256_Public,
+                PublicKeySender = KeyingMaterial.JsonWebKeyP256_Public,
+                PrivateKeyReceiver = KeyingMaterial.JsonWebKeyP256,
+                TokenValidationParameters = new TokenValidationParameters()
+                {
+                    TokenDecryptionKey = new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP256, true),
+                    ValidAudience = Default.Audience,
+                    ValidIssuer = Default.Issuer,
+                    IssuerSigningKey = Default.AsymmetricSigningKey
+                },
+                ApuSender = "SenderInfo",
+                ApvSender = "ReceivererInfo"
+            };
+
+            var epkJObject = new JObject();
+            epkJObject.Add(JsonWebKeyParameterNames.Kty, testData.PublicKeySender.Kty);
+            epkJObject.Add(JsonWebKeyParameterNames.Crv, testData.PublicKeySender.Crv);
+            epkJObject.Add(JsonWebKeyParameterNames.X, testData.PublicKeySender.X);
+            epkJObject.Add(JsonWebKeyParameterNames.Y, testData.PublicKeySender.Y);
+            testData.AdditionalHeaderParams = new Dictionary<string, object>();
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apu, testData.ApuSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apv, testData.ApvSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Epk, epkJObject);
+
+            return testData;
+        }
+
+        private static CreateEcdhEsTheoryData EcdhEsCurveP384EncA256KW()
+        {
+            CreateEcdhEsTheoryData testData = new CreateEcdhEsTheoryData("EcdhEsCurveP384EncA256KW")
+            {
+                EncryptingCredentials = new EncryptingCredentials(
+                                    new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP384, true),
+                                    SecurityAlgorithms.EcdhEsA256kw,
+                                    SecurityAlgorithms.Aes128CbcHmacSha256)
+                {
+                    JsonWebKey = KeyingMaterial.JsonWebKeyP384_Public
+                },
+                PublicKeyReceiver = KeyingMaterial.JsonWebKeyP384_Public,
+                PublicKeySender = KeyingMaterial.JsonWebKeyP384_Public,
+                PrivateKeyReceiver = KeyingMaterial.JsonWebKeyP384,
+                TokenValidationParameters = new TokenValidationParameters()
+                {
+                    TokenDecryptionKey = new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP384, true),
+                    ValidAudience = Default.Audience,
+                    ValidIssuer = Default.Issuer,
+                    IssuerSigningKey = Default.AsymmetricSigningKey
+                },
+                ApuSender = "SenderInfo",
+                ApvSender = "ReceivererInfo"
+            };
+
+            var epkJObject = new JObject();
+            epkJObject.Add(JsonWebKeyParameterNames.Kty, testData.PublicKeySender.Kty);
+            epkJObject.Add(JsonWebKeyParameterNames.Crv, testData.PublicKeySender.Crv);
+            epkJObject.Add(JsonWebKeyParameterNames.X, testData.PublicKeySender.X);
+            epkJObject.Add(JsonWebKeyParameterNames.Y, testData.PublicKeySender.Y);
+            testData.AdditionalHeaderParams = new Dictionary<string, object>();
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apu, testData.ApuSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apv, testData.ApvSender);
+            //testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Epk, testData.PublicKeySender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Epk, epkJObject);
+            // APU, APV different
+            return testData;
+        }
+
+        private static CreateEcdhEsTheoryData EcdhEsCurveP512EncA256KW()
+        {
+            // use of 521 is actually 512
+            CreateEcdhEsTheoryData testData = new CreateEcdhEsTheoryData("EcdhEsCurveP512EncA256KW")
+            {
+                EncryptingCredentials = new EncryptingCredentials(
+                                    new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP521, true),
+                                    SecurityAlgorithms.EcdhEsA256kw,
+                                    SecurityAlgorithms.Aes128CbcHmacSha256)
+                {
+                    JsonWebKey = KeyingMaterial.JsonWebKeyP521_Public
+                },
+                PublicKeyReceiver = KeyingMaterial.JsonWebKeyP521_Public,
+                PublicKeySender = KeyingMaterial.JsonWebKeyP521_Public,
+                PrivateKeyReceiver = KeyingMaterial.JsonWebKeyP521,
+                TokenValidationParameters = new TokenValidationParameters()
+                {
+                    TokenDecryptionKey = new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP521, true),
+                    ValidAudience = Default.Audience,
+                    ValidIssuer = Default.Issuer,
+                    IssuerSigningKey = Default.AsymmetricSigningKey
+                },
+                ApuSender = "SenderInfo",
+                ApvSender = "ReceivererInfo"
+            };
+
+            var epkJObject = new JObject();
+            epkJObject.Add(JsonWebKeyParameterNames.Kty, testData.PublicKeySender.Kty);
+            epkJObject.Add(JsonWebKeyParameterNames.Crv, testData.PublicKeySender.Crv);
+            epkJObject.Add(JsonWebKeyParameterNames.X, testData.PublicKeySender.X);
+            epkJObject.Add(JsonWebKeyParameterNames.Y, testData.PublicKeySender.Y);
+            testData.AdditionalHeaderParams = new Dictionary<string, object>();
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apu, testData.ApuSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apv, testData.ApvSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Epk, epkJObject);
+
+            return testData;
+        }
+
+        private static CreateEcdhEsTheoryData EcdhEsCurveP256EncA192KW()
+        {
+            CreateEcdhEsTheoryData testData = new CreateEcdhEsTheoryData("EcdhEsCurveP256EncA192KW")
+            {
+                EncryptingCredentials = new EncryptingCredentials(
+                                    new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP256, true),
+                                    SecurityAlgorithms.EcdhEsA192kw,
+                                    SecurityAlgorithms.Aes192CbcHmacSha384)
+                {
+                    JsonWebKey = KeyingMaterial.JsonWebKeyP256_Public
+                },
+                PublicKeyReceiver = KeyingMaterial.JsonWebKeyP256_Public,
+                PublicKeySender = KeyingMaterial.JsonWebKeyP256_Public,
+                PrivateKeyReceiver = KeyingMaterial.JsonWebKeyP256,
+                TokenValidationParameters = new TokenValidationParameters()
+                {
+                    TokenDecryptionKey = new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP256, true),
+                    ValidAudience = Default.Audience,
+                    ValidIssuer = Default.Issuer,
+                    IssuerSigningKey = Default.AsymmetricSigningKey
+                },
+                ApuSender = "SenderInfo",
+                ApvSender = "ReceivererInfo"
+            };
+
+            var epkJObject = new JObject();
+            epkJObject.Add(JsonWebKeyParameterNames.Kty, testData.PublicKeySender.Kty);
+            epkJObject.Add(JsonWebKeyParameterNames.Crv, testData.PublicKeySender.Crv);
+            epkJObject.Add(JsonWebKeyParameterNames.X, testData.PublicKeySender.X);
+            epkJObject.Add(JsonWebKeyParameterNames.Y, testData.PublicKeySender.Y);
+            testData.AdditionalHeaderParams = new Dictionary<string, object>();
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apu, testData.ApuSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apv, testData.ApvSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Epk, epkJObject);
+
+            return testData;
+        }
+
+        private static CreateEcdhEsTheoryData EcdhEsCurveP256EncA128KW()
+        {
+            CreateEcdhEsTheoryData testData = new CreateEcdhEsTheoryData("EcdhEsCurveP256EncA128KW")
+            {
+                EncryptingCredentials = new EncryptingCredentials(
+                                    new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP256, true),
+                                    SecurityAlgorithms.EcdhEsA128kw,
+                                    SecurityAlgorithms.Aes128CbcHmacSha256)
+                {
+                    JsonWebKey = KeyingMaterial.JsonWebKeyP256_Public
+                },
+                PublicKeyReceiver = KeyingMaterial.JsonWebKeyP256_Public,
+                PublicKeySender = KeyingMaterial.JsonWebKeyP256_Public,
+                PrivateKeyReceiver = KeyingMaterial.JsonWebKeyP256,
+                TokenValidationParameters = new TokenValidationParameters()
+                {
+                    TokenDecryptionKey = new ECDsaSecurityKey(KeyingMaterial.JsonWebKeyP256, true),
+                    ValidAudience = Default.Audience,
+                    ValidIssuer = Default.Issuer,
+                    IssuerSigningKey = Default.AsymmetricSigningKey
+                },
+                ApuSender = "SenderInfo",
+                ApvSender = "ReceivererInfo"
+            };
+
+            var epkJObject = new JObject();
+            epkJObject.Add(JsonWebKeyParameterNames.Kty, testData.PublicKeySender.Kty);
+            epkJObject.Add(JsonWebKeyParameterNames.Crv, testData.PublicKeySender.Crv);
+            epkJObject.Add(JsonWebKeyParameterNames.X, testData.PublicKeySender.X);
+            epkJObject.Add(JsonWebKeyParameterNames.Y, testData.PublicKeySender.Y);
+            testData.AdditionalHeaderParams = new Dictionary<string, object>();
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apu, testData.ApuSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Apv, testData.ApvSender);
+            testData.AdditionalHeaderParams.Add(JwtHeaderParameterNames.Epk, epkJObject);
+
+            return testData;
+        }
     }
 
     public class CreateEcdhEsTheoryData : TheoryDataBase
@@ -108,6 +304,8 @@ namespace Microsoft.IdentityModel.Tokens.Tests
         public JsonWebKey PublicKeyReceiver { get; set; }
         public JsonWebKey PublicKeySender { get; set; }
         public TokenValidationParameters TokenValidationParameters { get; set; }
+        public bool ExpectedIsValid { get; set; } = true;
+        public IDictionary<string, object> AdditionalHeaderParams { get; set; }
     }
 }
 

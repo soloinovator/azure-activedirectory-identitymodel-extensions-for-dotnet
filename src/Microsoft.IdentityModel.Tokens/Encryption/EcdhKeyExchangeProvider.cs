@@ -42,13 +42,16 @@ namespace Microsoft.IdentityModel.Tokens
     /// </summary>
     public class EcdhKeyExchangeProvider //todo: rename to KeyExchangeProvider, or EcKeyExchangeProvider?
     {
+        /// <summary>
+        /// Number of bits in the desired output key
+        /// </summary>
+        public int KeyDataLen { get; set; }
+
         private ECDiffieHellman _ecdhPublic;
         private ECDiffieHellman _ecdhPrivate;
         private ECParameters _ecParamsPublic;
         private ECParameters _ecParamsPrivate;
         private string _algorithmId;
-        private int _keyDataLen;
-        private int _i;
 
         /// <summary>
         /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
@@ -66,7 +69,7 @@ namespace Microsoft.IdentityModel.Tokens
 
             ValidateAlgAndEnc(alg, enc);
 
-            GetKeyDataLenAndEncryptionAlgorithm(alg, enc);
+            SetKeyDataLenAndEncryptionAlgorithm(alg, enc);
             _ecParamsPrivate = privateKey.ECDsa.ExportParameters(true);
             _ecParamsPublic = publicKey.ECDsa.ExportParameters(false);
 
@@ -94,7 +97,7 @@ namespace Microsoft.IdentityModel.Tokens
 
             ValidateAlgAndEnc(alg, enc);
 
-            GetKeyDataLenAndEncryptionAlgorithm(alg, enc);
+            SetKeyDataLenAndEncryptionAlgorithm(alg, enc);
             _ecParamsPrivate = privateKey.ECDsa.ExportParameters(true);
             _ecParamsPublic = GetEcParamsFromJwk(publicKey);
 
@@ -122,7 +125,7 @@ namespace Microsoft.IdentityModel.Tokens
 
             ValidateAlgAndEnc(alg, enc);
 
-            GetKeyDataLenAndEncryptionAlgorithm(alg, enc);
+            SetKeyDataLenAndEncryptionAlgorithm(alg, enc);
             _ecParamsPrivate = GetEcParamsFromJwk(privateKey);
             _ecParamsPublic = publicKey.ECDsa.ExportParameters(false);
 
@@ -150,7 +153,7 @@ namespace Microsoft.IdentityModel.Tokens
             
             ValidateAlgAndEnc(alg, enc);
 
-            GetKeyDataLenAndEncryptionAlgorithm(alg, enc);
+            SetKeyDataLenAndEncryptionAlgorithm(alg, enc);
             _ecParamsPrivate = GetEcParamsFromJwk(privateKey);
             _ecParamsPublic = GetEcParamsFromJwk(publicKey);
 
@@ -163,34 +166,34 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Generates the Content Encryption Key
+        /// Generates the KDF
         /// </summary>
         /// <param name="apu">Agreement PartyUInfo (optional). When used, the PartyVInfo value contains information about the producer,
         /// represented as a base64url-encoded string.</param>
         /// <param name="apv">Agreement PartyVInfo (optional). When used, the PartyUInfo value contains information about the recipient,
         /// represented as a base64url-encoded string.</param>
         /// <returns></returns>
-        public SecurityKey GenerateCek(string apu = null, string apv = null)
+        public SecurityKey GenerateKdf(string apu = null, string apv = null)
         {
-            //The "apu" and "apv" values MUST be distinct when used (per rfc7518 section 4.6.2)
+            //The "apu" and "apv" values MUST be distinct when used (per rfc7518 section 4.6.2) https://datatracker.ietf.org/doc/html/rfc7518#section-4.6.2
             if (!string.IsNullOrEmpty(apu)
                 && !string.IsNullOrEmpty(apv)
                 && apu.Equals(apv, StringComparison.InvariantCulture))
                 throw LogHelper.LogArgumentException<ArgumentException>(nameof(apu), $"{nameof(apu)} must be different from {nameof(apv)}.");
 
-            int cekLength = _keyDataLen / 8; // number of octets
-            byte[] prepend = BitConverter.GetBytes(_i++);
-            if (BitConverter.IsLittleEndian)
-                Array.Reverse(prepend);
+            int cekLength = KeyDataLen / 8; // number of octets
+            byte[] prepend = new byte[4] { 0, 0, 0, 1 };
+            // n is the ceiling of keydatalen / hashlen, see section 5.8.1.1: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar2.pdf
+            // hashlen is always 256 for ecdh-es, see: https://datatracker.ietf.org/doc/html/rfc7518#section-4.6.2
+            //prepend = BitConverter.GetBytes(n); 
+            //if (BitConverter.IsLittleEndian)
+            //    Array.Reverse(prepend);
+
             SetAppendBytes(apu, apv, out byte[] append);
             byte[] cek = new byte[cekLength];
-            byte[] derivedKey = _ecdhPrivate.DeriveKeyFromHash(_ecdhPublic.PublicKey, HashAlgorithmName.SHA256, prepend, append);
 
-            /* 
-             * should we include customization here:
-             * 1. Use someting different than HashAlgorithmName.SHA256
-             * 2. Use DeriveKeyFromHmac or DeriveKeyTls //_ecdh.Value.DeriveKeyFromHmac(otherPartyPublicKey, HashAlgorithmName.SHA256, salt, prepend, append);
-             */
+            // JWA's spec https://datatracker.ietf.org/doc/html/rfc7518#section-4.6.2 specifies SHA256, saml might be different
+            byte[] derivedKey = _ecdhPrivate.DeriveKeyFromHash(_ecdhPublic.PublicKey, HashAlgorithmName.SHA256, prepend, append);
             Array.Copy(derivedKey, cek, cekLength);
 
             return new SymmetricSecurityKey(cek);
@@ -204,7 +207,7 @@ namespace Microsoft.IdentityModel.Tokens
             byte[] numOctetsEnc = BitConverter.GetBytes(encBytes.Length);
             byte[] numOctetsApu = BitConverter.GetBytes(apuBytes.Length);
             byte[] numOctetsApv = BitConverter.GetBytes(apvBytes.Length);
-            byte[] keyDataLengthBytes = BitConverter.GetBytes(_keyDataLen);
+            byte[] keyDataLengthBytes = BitConverter.GetBytes(KeyDataLen);
 
             if (BitConverter.IsLittleEndian)
             {
@@ -218,34 +221,34 @@ namespace Microsoft.IdentityModel.Tokens
             append = Concat(numOctetsEnc, encBytes, numOctetsApu, apuBytes, numOctetsApv, apvBytes, keyDataLengthBytes);
         }
 
-        private void GetKeyDataLenAndEncryptionAlgorithm(string alg, string enc = null)
+        private void SetKeyDataLenAndEncryptionAlgorithm(string alg, string enc = null)
         {
             if (SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture)) // dir or ECDH-ES
             {
                 _algorithmId = enc;
                 if (SecurityAlgorithms.Aes128Gcm.Equals(enc, StringComparison.InvariantCulture))
-                    _keyDataLen = 128;
+                    KeyDataLen = 128;
                 else if (SecurityAlgorithms.Aes192Gcm.Equals(enc, StringComparison.InvariantCulture))
-                    _keyDataLen = 192;
+                    KeyDataLen = 192;
                 else if (SecurityAlgorithms.Aes256Gcm.Equals(enc, StringComparison.InvariantCulture))
-                    _keyDataLen = 256;
+                    KeyDataLen = 256;
                 else if (SecurityAlgorithms.Aes128CbcHmacSha256.Equals(enc, StringComparison.InvariantCulture))
-                    _keyDataLen = 128;
+                    KeyDataLen = 128;
                 else if (SecurityAlgorithms.Aes192CbcHmacSha384.Equals(enc, StringComparison.InvariantCulture))
-                    _keyDataLen = 192;
+                    KeyDataLen = 192;
                 else if (SecurityAlgorithms.Aes256CbcHmacSha512.Equals(enc, StringComparison.InvariantCulture))
-                    _keyDataLen = 256;
+                    KeyDataLen = 256;
             }
             else
             {
                 _algorithmId = alg;
 
                 if (SecurityAlgorithms.EcdhEsA128kw.Equals(alg, StringComparison.InvariantCulture))
-                    _keyDataLen = 128;
+                    KeyDataLen = 128;
                 else if (SecurityAlgorithms.EcdhEsA192kw.Equals(alg, StringComparison.InvariantCulture))
-                    _keyDataLen = 192;
+                    KeyDataLen = 192;
                 else if (SecurityAlgorithms.EcdhEsA256kw.Equals(alg, StringComparison.InvariantCulture))
-                    _keyDataLen = 256;
+                    KeyDataLen = 256;
             }
         }
 
@@ -267,7 +270,6 @@ namespace Microsoft.IdentityModel.Tokens
         {
             _ecdhPublic = ECDiffieHellman.Create(_ecParamsPublic);
             _ecdhPrivate = ECDiffieHellman.Create(_ecParamsPrivate);
-            _i = 1;
         }
 
         private static byte[] Concat(params byte[][] arrays)
@@ -285,7 +287,7 @@ namespace Microsoft.IdentityModel.Tokens
             return output;
         }
 
-        private static ECParameters GetEcParamsFromJwk(JsonWebKey publicKey)
+        internal static ECParameters GetEcParamsFromJwk(JsonWebKey publicKey)
         {
             ECCurve curve = Utility.GetEllipticCurve(publicKey.Crv);
             return new ECParameters()
@@ -297,6 +299,17 @@ namespace Microsoft.IdentityModel.Tokens
                     Y = Base64UrlEncoder.DecodeBytes(publicKey.Y)
                 }
             };
+        }
+
+        internal string GetEncryptionAlgorithm()
+        {
+            if (_algorithmId.Equals(SecurityAlgorithms.EcdhEsA128kw, StringComparison.Ordinal))
+                return SecurityAlgorithms.Aes128KeyWrap;
+            if (_algorithmId.Equals(SecurityAlgorithms.EcdhEsA192kw, StringComparison.Ordinal))
+                return SecurityAlgorithms.Aes192KeyWrap;
+            if (_algorithmId.Equals(SecurityAlgorithms.EcdhEsA256kw, StringComparison.Ordinal))
+                return SecurityAlgorithms.Aes256KeyWrap;
+            return _algorithmId;
         }
     }
 #endif

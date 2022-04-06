@@ -280,6 +280,15 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
         internal static SecurityKey GetSecurityKey(EncryptingCredentials encryptingCredentials, CryptoProviderFactory cryptoProviderFactory, out byte[] wrappedKey)
         {
+            return GetSecurityKey(encryptingCredentials, cryptoProviderFactory, null, out wrappedKey);
+        }
+
+        internal static SecurityKey GetSecurityKey(
+            EncryptingCredentials encryptingCredentials,
+            CryptoProviderFactory cryptoProviderFactory,
+            IDictionary<string, object> additionalHeaderClaims,
+            out byte[] wrappedKey)
+        {
             SecurityKey securityKey = null;
             KeyWrapProvider kwProvider = null;
             wrappedKey = null;
@@ -293,16 +302,23 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 securityKey = encryptingCredentials.Key;
             }
 #if NET472
-            else if (SecurityAlgorithms.EcdhEsA256kw.Equals(encryptingCredentials.Alg, StringComparison.Ordinal))
+            else if (SupportedAlgorithms.EcdsaWrapAlgorithms.Contains(encryptingCredentials.Alg))
             {
                 // on decryption we get the public key from the EPK value see: https://datatracker.ietf.org/doc/html/rfc7518#appendix-C
+                string apu = null, apv = null;
+                if (additionalHeaderClaims != null && additionalHeaderClaims.Count > 0)
+                {
+                    if (additionalHeaderClaims.TryGetValue(JwtHeaderParameterNames.Apu, out object objApu))
+                        apu = objApu.ToString();
+                    if (additionalHeaderClaims.TryGetValue(JwtHeaderParameterNames.Apv, out object objApv))
+                        apv = objApv.ToString();
+                }
                 EcdhKeyExchangeProvider ecdhKeyExchangeProvider = new EcdhKeyExchangeProvider(encryptingCredentials.Key as ECDsaSecurityKey, encryptingCredentials.JsonWebKey, encryptingCredentials.Alg, encryptingCredentials.Enc);
-                SecurityKey KDF = ecdhKeyExchangeProvider.GenerateCek();
-                kwProvider = cryptoProviderFactory.CreateKeyWrapProvider(KDF, SecurityAlgorithms.Aes256KeyWrap);
-                SecurityKey cek = new SymmetricSecurityKey(JwtTokenUtilities.GenerateKeyBytes(256));
+                SecurityKey kdf = ecdhKeyExchangeProvider.GenerateKdf(apu, apv);
+                kwProvider = cryptoProviderFactory.CreateKeyWrapProvider(kdf, ecdhKeyExchangeProvider.GetEncryptionAlgorithm());
+                SecurityKey cek = new SymmetricSecurityKey(JwtTokenUtilities.GenerateKeyBytes(ecdhKeyExchangeProvider.KeyDataLen * 2));
                 wrappedKey = kwProvider.WrapKey(((SymmetricSecurityKey)cek).Key);
                 return cek;
-                //create agreen upon key = SharedPubicKey * Curve * private 
             }
 #endif
             else

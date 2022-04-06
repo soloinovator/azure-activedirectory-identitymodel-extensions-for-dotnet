@@ -104,6 +104,8 @@ namespace Microsoft.IdentityModel.Tokens
         {
             SecurityAlgorithms.Aes128KW,
             SecurityAlgorithms.Aes128KeyWrap,
+            SecurityAlgorithms.Aes192KW,
+            SecurityAlgorithms.Aes192KeyWrap,
             SecurityAlgorithms.Aes256KW,
             SecurityAlgorithms.Aes256KeyWrap,
             SecurityAlgorithms.EcdhEsA128kw,

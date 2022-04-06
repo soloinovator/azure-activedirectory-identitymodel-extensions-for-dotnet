@@ -29,6 +29,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.TestUtils;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -47,15 +48,15 @@ namespace Microsoft.IdentityModel.Tokens.Tests
         [PlatformSpecific(TestPlatforms.Windows)]
 #endif
         [Fact]
-        public void Walkthrough()
+        public void ECDH_ESReferenceTest()
         {
             var context = new CompareContext();
 #if NET472
             // arrange
-            // the values alg, enc, apu, apv, should come from EPKString
-            string alg = "ECDH-ES";
-            string enc = "A128GCM";
-            string apu = "QWxpY2U", apv = "Qm9i";
+            string alg = ECDH_ES.Alg;
+            string enc = ECDH_ES.Enc;
+            string apu = ECDH_ES.Apu;
+            string apv = ECDH_ES.Apv;
 
             var aliceEcdsaSecurityKey = new ECDsaSecurityKey(ECDH_ES.AliceEphereralPrivateKey, true);
             var aliceKeyExchangeProvider = new EcdhKeyExchangeProvider(aliceEcdsaSecurityKey, ECDH_ES.BobEphereralPublicKey, alg, enc);
@@ -64,17 +65,13 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             var bobKeyExchangeProvider = new EcdhKeyExchangeProvider(bobEcdsaSecurityKey, ECDH_ES.AliceEphereralPublicKey, alg, enc);
 
             // act
-            SecurityKey aliceCek = aliceKeyExchangeProvider.GenerateCek(apu, apv);
-            SecurityKey bobCek = bobKeyExchangeProvider.GenerateCek(apu, apv);
-            SecurityKey aliceCek2 = aliceKeyExchangeProvider.GenerateCek(apu, apv);
-            SecurityKey bobCek2 = bobKeyExchangeProvider.GenerateCek(apu, apv);
+            SecurityKey aliceCek = aliceKeyExchangeProvider.GenerateKdf(apu, apv);
+            SecurityKey bobCek = bobKeyExchangeProvider.GenerateKdf(apu, apv);
 
             // assert
-            // compare CEKs are the same and they're matching with expected
+            // compare KDFs are the same and they're matching with expected
             if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek).Key, ((SymmetricSecurityKey)bobCek).Key)) 
                 context.AddDiff($"!Utility.AreEqual(aliceCek, bobCek)");
-            if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek2).Key, ((SymmetricSecurityKey)bobCek2).Key))
-                context.AddDiff($"!Utility.AreEqual(aliceCek2, bobCek2)");
             if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek).Key, ECDH_ES.DerivedKeyBytes))
                 context.AddDiff($"!Utility.AreEqual(aliceCek, ECDH_ES.DerivedKeyBytes)");
 
@@ -184,19 +181,6 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             {
                 return TestId + ", " + Algorithm + ", " + EncryptionKey.KeyId + ", " + DecryptionKey.KeyId;
             }
-        }
-
-        [Fact]
-        public void ECDH_ESReferenceTest()
-        {
-            // Use the data in: public static class ECDH_ES
-            // To generate all the parts of required for creating the derived key and compare against reference.
-
-            // 1. Create Derived key using Alice's public key and Bob's Private key
-            // 2. Create Derived key using Bob's public key and Alice's Private key
-
-            // Generate Z, then compare
-            // Generate ConcatKDF, then compare
         }
 
         [Theory, MemberData(nameof(KeyWrapTheoryData))]

@@ -58,7 +58,6 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             get
             {
                 TheoryData<EcdhEsTheoryData> theoryData = new TheoryData<EcdhEsTheoryData>();
-
                 return theoryData;
             }
         }
@@ -72,7 +71,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             // 'key-wrap' 'alg' values - ECDH-ES+A128KW, ECDH-ES+A192KW, ECDH-ES+A256KW.
             //      Use key agreement to encrypt a emphemeral symmetric key generated for each encryption
             //      The output of the Concat KDF MUST be the length for the algorithm 128,192,256
-            // In either case, a new pphemeral public key MUST be generated for each key agreement
+            // In either case, a new ephemeral public key MUST be generated for each key agreement
             // Header parameters
             // 'epk' - the ephemeral public key created by the originator
             //      contains the minumum JWK parameters (RSA - 'e' and 'n')
