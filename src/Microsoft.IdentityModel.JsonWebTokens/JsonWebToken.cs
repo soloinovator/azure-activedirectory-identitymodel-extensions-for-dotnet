@@ -93,7 +93,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
         public JsonWebToken(string jwtEncodedString)
         {
             if (string.IsNullOrEmpty(jwtEncodedString))
-                throw new ArgumentNullException(nameof(jwtEncodedString));
+                throw LogHelper.LogExceptionMessage(new ArgumentNullException(nameof(jwtEncodedString)));
 
             Initialize();
             ReadToken(jwtEncodedString);
@@ -386,46 +386,60 @@ namespace Microsoft.IdentityModel.JsonWebTokens
 
         private void ReadToken(string encodedJson)
         {
-            List<int> dots = new List<int>();
-            int index = 0;
-            while (index < encodedJson.Length && dots.Count <= JwtConstants.MaxJwtSegmentCount + 1)
-            {
-                if (encodedJson[index] == '.')
-                    dots.Add(index);
+            // JWT must have 2 dots
+            int firstDot = encodedJson.IndexOf('.');
+            if (firstDot == -1)
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14100, encodedJson)));
 
-                index++;
-            }
+            int secondDot = encodedJson.IndexOf('.', firstDot+1);
+            if (secondDot == -1)
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14100, encodedJson)));
 
-            EncodedToken = encodedJson;
-            if (dots.Count == JwtConstants.JwsSegmentCount - 1)
+            int thirdDot = encodedJson.IndexOf('.', secondDot+1);
+
+            // JWS has two dots
+            if (thirdDot == -1)
             {
-                IsSigned = !(dots[1] + 1 == encodedJson.Length);
-                _hChars = encodedJson.ToCharArray(0, dots[0]);
-                _pChars = encodedJson.ToCharArray(dots[0] + 1, dots[1] - dots[0] - 1);
-                MessageBytes = Encoding.UTF8.GetBytes(encodedJson.ToCharArray(0, dots[1]));
+                IsSigned = !(secondDot + 1 == encodedJson.Length);
+                _hChars = encodedJson.ToCharArray(0, firstDot);
+                _pChars = encodedJson.ToCharArray(firstDot + 1, secondDot - firstDot - 1);
+                MessageBytes = Encoding.UTF8.GetBytes(encodedJson.ToCharArray(0, secondDot));
                 try
                 {
-                    _sChars = IsSigned ? encodedJson.ToCharArray(dots[1] + 1, encodedJson.Length - dots[1] - 1) : string.Empty.ToCharArray();
+                    _sChars = IsSigned ? encodedJson.ToCharArray(secondDot + 1, encodedJson.Length - secondDot - 1) : string.Empty.ToCharArray();
                     SignatureBytes = Base64UrlEncoder.UnsafeDecode(_sChars);
                     Header = new JsonClaimSet(Base64UrlEncoder.UnsafeDecode(_hChars));
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14102, encodedJson.Substring(0, dots[0]), encodedJson), ex));
+                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14102, encodedJson.Substring(0, firstDot), encodedJson), ex));
                 }
 
                 try
                 {
                     Payload = new JsonClaimSet(Base64UrlEncoder.UnsafeDecode(_pChars));
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14101, encodedJson.Substring(dots[0], dots[1] - dots[0]), encodedJson), ex));
+                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14101, encodedJson.Substring(firstDot, secondDot - firstDot), encodedJson), ex));
                 }
             }
-            else if (dots.Count == JwtConstants.JweSegmentCount - 1)
+            else
             {
-                _hChars = encodedJson.ToCharArray(0, dots[0]);
+                int fourthDot = encodedJson.IndexOf('.', thirdDot+1);
+                // JWE needs to have 4 dots
+                if (fourthDot == -1)
+                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14100, encodedJson)));
+
+                int fifthDot = encodedJson.IndexOf('.', fourthDot+1);
+                // too many dots...
+                if (fifthDot != -1)
+                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14100, encodedJson)));
+
+                // right number of dots for JWE
+                _hChars = encodedJson.ToCharArray(0, firstDot);
+
+                // header cannot be empty
                 if (_hChars.Length == 0)
                     throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14307, encodedJson)));
 
@@ -436,15 +450,15 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                 }
                 catch (Exception ex)
                 {
-                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14102, encodedJson.Substring(0, dots[0]), encodedJson), ex));
+                    throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14102, encodedJson.Substring(0, firstDot), encodedJson), ex));
                 }
 
                 // dir does not have any key bytes
-                char[] encryptedKeyBytes = encodedJson.ToCharArray(dots[0] + 1, dots[1] - dots[0] - 1);
+                char[] encryptedKeyBytes = encodedJson.ToCharArray(firstDot + 1, secondDot - firstDot - 1);
                 if (encryptedKeyBytes.Length != 0)
                     EncryptedKeyBytes = Base64UrlEncoder.UnsafeDecode(encryptedKeyBytes);
 
-                char[] ivChars = encodedJson.ToCharArray(dots[1] + 1, dots[2] - dots[1] - 1);
+                char[] ivChars = encodedJson.ToCharArray(secondDot + 1, thirdDot - secondDot - 1);
                 if (ivChars.Length == 0)
                     throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14308, encodedJson)));
 
@@ -457,7 +471,7 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                     throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14309, encodedJson, encodedJson), ex));
                 }
 
-                char[] authTagChars = encodedJson.ToCharArray(dots[3] + 1, encodedJson.Length - dots[3] - 1);
+                char[] authTagChars = encodedJson.ToCharArray(fourthDot + 1, encodedJson.Length - fourthDot - 1);
                 if (authTagChars.Length == 0)
                     throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14310, encodedJson)));
 
@@ -470,23 +484,22 @@ namespace Microsoft.IdentityModel.JsonWebTokens
                     throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14311, encodedJson, encodedJson), ex));
                 }
 
-                char[] cipherTextBytes = encodedJson.ToCharArray(dots[2] + 1, dots[3] - dots[2] - 1);
+                char[] cipherTextBytes = encodedJson.ToCharArray(thirdDot + 1, fourthDot - thirdDot - 1);
                 if (cipherTextBytes.Length == 0)
                     throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14306, encodedJson)));
 
                 try
                 {
-                    CipherTextBytes = Base64UrlEncoder.UnsafeDecode(encodedJson.ToCharArray(dots[2] + 1, dots[3] - dots[2] - 1));
+                    CipherTextBytes = Base64UrlEncoder.UnsafeDecode(encodedJson.ToCharArray(thirdDot + 1, fourthDot - thirdDot - 1));
                 }
                 catch (Exception ex)
                 {
                     throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14312, encodedJson, encodedJson), ex));
                 }
             }
-            else
-            {
-                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX14100, encodedJson)));
-            }
+
+            EncodedToken = encodedJson;
+
         }
 
         /// <summary>
