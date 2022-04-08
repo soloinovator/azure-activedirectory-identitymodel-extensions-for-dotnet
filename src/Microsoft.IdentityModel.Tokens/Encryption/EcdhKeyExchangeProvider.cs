@@ -73,10 +73,7 @@ namespace Microsoft.IdentityModel.Tokens
             _ecParamsPrivate = privateKey.ECDsa.ExportParameters(true);
             _ecParamsPublic = publicKey.ECDsa.ExportParameters(false);
 
-            if (_ecParamsPrivate.Curve.Equals(_ecParamsPublic.Curve))
-            {
-                throw LogHelper.LogArgumentException<ArgumentException>(nameof(privateKey), $"{nameof(privateKey)}'s curve does not match with {nameof(publicKey)}'s curve.");
-            }
+            ValidateCurves(nameof(privateKey), nameof(publicKey));
 
             Initialize();
         }
@@ -101,66 +98,7 @@ namespace Microsoft.IdentityModel.Tokens
             _ecParamsPrivate = privateKey.ECDsa.ExportParameters(true);
             _ecParamsPublic = GetEcParamsFromJwk(publicKey);
 
-            if (_ecParamsPrivate.Curve.Equals(_ecParamsPublic.Curve))
-            {
-                throw LogHelper.LogArgumentException<ArgumentException>(nameof(privateKey), $"{nameof(privateKey)}'s curve does not match with {nameof(publicKey)}'s curve.");
-            }
-
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
-        /// <param name="privateKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations and represents the private key.</param>
-        /// <param name="publicKey">The <see cref="ECDsaSecurityKey"/> that will be used for cryptographic operations and represents the public key.</param>
-        /// <param name="alg">alg header parameter value.</param>
-        /// <param name="enc">enc header parameter value.</param>
-        /// </summary>
-        public EcdhKeyExchangeProvider(JsonWebKey privateKey, ECDsaSecurityKey publicKey, string alg, string enc)
-        {
-            if (privateKey == null)
-                throw LogHelper.LogArgumentNullException(nameof(privateKey));
-            if (publicKey is null)
-                throw LogHelper.LogArgumentNullException(nameof(publicKey));
-
-            ValidateAlgAndEnc(alg, enc);
-
-            SetKeyDataLenAndEncryptionAlgorithm(alg, enc);
-            _ecParamsPrivate = GetEcParamsFromJwk(privateKey);
-            _ecParamsPublic = publicKey.ECDsa.ExportParameters(false);
-
-            if (_ecParamsPrivate.Curve.Equals(_ecParamsPublic.Curve))
-            {
-                throw LogHelper.LogArgumentException<ArgumentException>(nameof(privateKey), $"{nameof(privateKey)}'s curve does not match with {nameof(publicKey)}'s curve.");
-            }
-
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="EcdhKeyExchangeProvider"/> used for CEKs
-        /// <param name="privateKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations and represents the private key.</param>
-        /// <param name="publicKey">The <see cref="JsonWebKey"/> that will be used for cryptographic operations and represents the public key.</param>
-        /// <param name="alg">alg header parameter value.</param>
-        /// <param name="enc">enc header parameter value.</param>
-        /// </summary>
-        public EcdhKeyExchangeProvider(JsonWebKey privateKey, JsonWebKey publicKey, string alg, string enc)
-        {
-            if (privateKey == null)
-                throw LogHelper.LogArgumentNullException(nameof(privateKey));
-            if (publicKey is null)
-                throw LogHelper.LogArgumentNullException(nameof(publicKey));
-            
-            ValidateAlgAndEnc(alg, enc);
-
-            SetKeyDataLenAndEncryptionAlgorithm(alg, enc);
-            _ecParamsPrivate = GetEcParamsFromJwk(privateKey);
-            _ecParamsPublic = GetEcParamsFromJwk(publicKey);
-
-            if (_ecParamsPrivate.Curve.Equals(_ecParamsPublic.Curve))
-            {
-                throw LogHelper.LogArgumentException<ArgumentException>(nameof(privateKey), $"{nameof(privateKey)}'s curve does not match with {nameof(publicKey)}'s curve.");
-            }
+            ValidateCurves(nameof(privateKey), nameof(publicKey));
 
             Initialize();
         }
@@ -172,36 +110,41 @@ namespace Microsoft.IdentityModel.Tokens
         /// represented as a base64url-encoded string.</param>
         /// <param name="apv">Agreement PartyVInfo (optional). When used, the PartyUInfo value contains information about the recipient,
         /// represented as a base64url-encoded string.</param>
-        /// <returns></returns>
+        /// <returns>Returns <see cref="SecurityKey"/> that represents the key generated</returns>
         public SecurityKey GenerateKdf(string apu = null, string apv = null)
         {
             //The "apu" and "apv" values MUST be distinct when used (per rfc7518 section 4.6.2) https://datatracker.ietf.org/doc/html/rfc7518#section-4.6.2
             if (!string.IsNullOrEmpty(apu)
                 && !string.IsNullOrEmpty(apv)
                 && apu.Equals(apv, StringComparison.InvariantCulture))
-                throw LogHelper.LogArgumentException<ArgumentException>(nameof(apu), $"{nameof(apu)} must be different from {nameof(apv)}.");
+                throw LogHelper.LogArgumentException<ArgumentException>(
+                    nameof(apu),
+                    LogHelper.FormatInvariant(
+                        LogMessages.IDX11001,
+                        LogHelper.MarkAsNonPII(nameof(apu)),
+                        LogHelper.MarkAsNonPII(apu),
+                        LogHelper.MarkAsNonPII(nameof(apv)),
+                        LogHelper.MarkAsNonPII(apv))
+                    );
 
-            int cekLength = KeyDataLen / 8; // number of octets
-            byte[] prepend = new byte[4] { 0, 0, 0, 1 };
-            // n is the ceiling of keydatalen / hashlen, see section 5.8.1.1: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar2.pdf
+            int kdfLength = KeyDataLen / 8; // number of octets
+            // prepend bytes that represent n = ceiling of (keydatalen / hashlen), see section 5.8.1.1: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar2.pdf
             // hashlen is always 256 for ecdh-es, see: https://datatracker.ietf.org/doc/html/rfc7518#section-4.6.2
-            //prepend = BitConverter.GetBytes(n); 
-            //if (BitConverter.IsLittleEndian)
-            //    Array.Reverse(prepend);
-
+            // for supported algorithms it is always '1', for saml might be different
+            byte[] prepend = new byte[4] { 0, 0, 0, 1 };
             SetAppendBytes(apu, apv, out byte[] append);
-            byte[] cek = new byte[cekLength];
+            byte[] kdf = new byte[kdfLength];
 
             // JWA's spec https://datatracker.ietf.org/doc/html/rfc7518#section-4.6.2 specifies SHA256, saml might be different
             byte[] derivedKey = _ecdhPrivate.DeriveKeyFromHash(_ecdhPublic.PublicKey, HashAlgorithmName.SHA256, prepend, append);
-            Array.Copy(derivedKey, cek, cekLength);
+            Array.Copy(derivedKey, kdf, kdfLength);
 
-            return new SymmetricSecurityKey(cek);
+            return new SymmetricSecurityKey(kdf);
         }
 
         private void SetAppendBytes(string apu, string apv, out byte[] append)
         {
-            byte[] encBytes = Encoding.ASCII.GetBytes(_algorithmId); //should it be using Base64UrlEncoder?
+            byte[] encBytes = Encoding.ASCII.GetBytes(_algorithmId);
             byte[] apuBytes = Base64UrlEncoder.DecodeBytes(string.IsNullOrEmpty(apu) ? string.Empty : apu);
             byte[] apvBytes = Base64UrlEncoder.DecodeBytes(string.IsNullOrEmpty(apv) ? string.Empty : apv);
             byte[] numOctetsEnc = BitConverter.GetBytes(encBytes.Length);
@@ -223,7 +166,7 @@ namespace Microsoft.IdentityModel.Tokens
 
         private void SetKeyDataLenAndEncryptionAlgorithm(string alg, string enc = null)
         {
-            if (SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture)) // dir or ECDH-ES
+            if (SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture))
             {
                 _algorithmId = enc;
                 if (SecurityAlgorithms.Aes128Gcm.Equals(enc, StringComparison.InvariantCulture))
@@ -260,10 +203,26 @@ namespace Microsoft.IdentityModel.Tokens
                 throw LogHelper.LogArgumentNullException(enc);
 
             if (!SupportedAlgorithms.EcdsaWrapAlgorithms.Contains(alg) && !SecurityAlgorithms.EcdhEs.Equals(alg, StringComparison.InvariantCulture))
-                throw LogHelper.LogArgumentException<ArgumentException>(nameof(alg), $"{nameof(alg)} is not supported.");
+                throw LogHelper.LogExceptionMessage(new NotSupportedException(LogHelper.FormatInvariant(LogMessages.IDX10652, LogHelper.MarkAsNonPII(alg))));
 
             if (!SupportedAlgorithms.SymmetricEncryptionAlgorithms.Contains(enc))
-                throw LogHelper.LogArgumentException<ArgumentException>(nameof(enc), $"{nameof(enc)} is not supported.");
+                throw LogHelper.LogExceptionMessage(new NotSupportedException(LogHelper.FormatInvariant(LogMessages.IDX10715, LogHelper.MarkAsNonPII(enc))));
+        }
+
+        private void ValidateCurves(string privateKeyArgName, string publicKeyArgName)
+        {
+            if (_ecParamsPrivate.Curve.Equals(_ecParamsPublic.Curve))
+            {
+                throw LogHelper.LogArgumentException<ArgumentException>(
+                    privateKeyArgName,
+                    LogHelper.FormatInvariant(
+                        LogMessages.IDX11000,
+                        LogHelper.MarkAsNonPII(privateKeyArgName),
+                        LogHelper.MarkAsNonPII(_ecParamsPrivate.Curve.ToString()),
+                        LogHelper.MarkAsNonPII(publicKeyArgName),
+                        LogHelper.MarkAsNonPII(_ecParamsPublic.Curve.ToString()))
+                    );
+            }
         }
 
         private void Initialize()
@@ -287,16 +246,16 @@ namespace Microsoft.IdentityModel.Tokens
             return output;
         }
 
-        internal static ECParameters GetEcParamsFromJwk(JsonWebKey publicKey)
+        internal static ECParameters GetEcParamsFromJwk(JsonWebKey key)
         {
-            ECCurve curve = Utility.GetEllipticCurve(publicKey.Crv);
+            ECCurve curve = Utility.GetEllipticCurve(key.Crv);
             return new ECParameters()
             {
                 Curve = curve,
                 Q = new ECPoint()
                 {
-                    X = Base64UrlEncoder.DecodeBytes(publicKey.X),
-                    Y = Base64UrlEncoder.DecodeBytes(publicKey.Y)
+                    X = Base64UrlEncoder.DecodeBytes(key.X),
+                    Y = Base64UrlEncoder.DecodeBytes(key.Y)
                 }
             };
         }

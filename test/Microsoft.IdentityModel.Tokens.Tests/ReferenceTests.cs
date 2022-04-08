@@ -47,11 +47,11 @@ namespace Microsoft.IdentityModel.Tokens.Tests
 #if NET_CORE
         [PlatformSpecific(TestPlatforms.Windows)]
 #endif
+#if NET472
         [Fact]
         public void ECDH_ESReferenceTest()
         {
             var context = new CompareContext();
-#if NET472
             // arrange
             string alg = ECDH_ES.Alg;
             string enc = ECDH_ES.Enc;
@@ -75,9 +75,9 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             if (!Utility.AreEqual(((SymmetricSecurityKey)aliceCek).Key, ECDH_ES.DerivedKeyBytes))
                 context.AddDiff($"!Utility.AreEqual(aliceCek, ECDH_ES.DerivedKeyBytes)");
 
-#endif
             TestUtilities.AssertFailIfErrors(context);
         }
+#endif
 
         [Fact]
         public void AesGcmReferenceTest()
