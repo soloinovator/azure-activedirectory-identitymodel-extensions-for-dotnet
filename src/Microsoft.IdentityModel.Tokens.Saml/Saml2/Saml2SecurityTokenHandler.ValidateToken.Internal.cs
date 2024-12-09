@@ -80,9 +80,11 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
             if (!conditionsResult.IsValid)
                 return conditionsResult.UnwrapError().AddCurrentStackFrame();
 
+            ValidationResult<ValidatedIssuer> issuerValidationResult;
+
             try
             {
-                ValidationResult<ValidatedIssuer> issuerValidationResult = await validationParameters.IssuerValidatorAsync(
+                issuerValidationResult = await validationParameters.IssuerValidatorAsync(
                     samlToken.Issuer,
                     samlToken,
                     validationParameters,
@@ -105,10 +107,10 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                     ex);
             }
 
+            ValidationResult<DateTime?>? tokenReplayValidationResult = null;
+
             if (samlToken.Assertion.Conditions is not null)
             {
-                ValidationResult<DateTime?> tokenReplayValidationResult;
-
                 try
                 {
                     tokenReplayValidationResult = validationParameters.TokenReplayValidator(
@@ -117,8 +119,8 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                         validationParameters,
                         callContext);
 
-                    if (!tokenReplayValidationResult.IsValid)
-                        return tokenReplayValidationResult.UnwrapError().AddCurrentStackFrame();
+                    if (!tokenReplayValidationResult.Value.IsValid)
+                        return tokenReplayValidationResult.Value.UnwrapError().AddCurrentStackFrame();
                 }
 #pragma warning disable CA1031 // Do not catch general exception types
                 catch (Exception ex)
@@ -168,7 +170,15 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                     ex);
             }
 
-            return new ValidatedToken(samlToken, this, validationParameters);
+            return new ValidatedToken(samlToken, this, validationParameters)
+            {
+                ValidatedAudience = conditionsResult.UnwrapResult().ValidatedAudience,
+                ValidatedLifetime = conditionsResult.UnwrapResult().ValidatedLifetime,
+                ValidatedIssuer = issuerValidationResult.UnwrapResult(),
+                ValidatedTokenReplayExpirationTime = tokenReplayValidationResult?.UnwrapResult(),
+                ValidatedSigningKey = signatureValidationResult.UnwrapResult(),
+                ValidatedSigningKeyLifetime = issuerSigningKeyValidationResult.UnwrapResult(),
+            };
         }
 
         // ValidatedConditions is basically a named tuple but using a record struct better expresses the intent.
