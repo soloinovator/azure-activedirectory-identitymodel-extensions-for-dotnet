@@ -141,6 +141,11 @@ namespace Microsoft.IdentityModel.Tokens
         private class IssuerValidatorFailure : ValidationFailureType { internal IssuerValidatorFailure(string name) : base(name) { } }
 
         /// <summary>
+        /// Defines a type that represents the fact that the audience validation delegate threw an exception.
+        /// </summary>
+        public static readonly ValidationFailureType AudienceValidatorThrew = new AudienceValidationFailure("AudienceValidatorThrew");
+
+        /// <summary>
         /// Defines a type that represents the fact that the issuer signing key validation delegate threw an exception.
         /// </summary>
         public static readonly ValidationFailureType IssuerSigningKeyValidatorThrew = new IssuerSigningKeyValidationFailure("IssuerSigningKeyValidatorThrew");
