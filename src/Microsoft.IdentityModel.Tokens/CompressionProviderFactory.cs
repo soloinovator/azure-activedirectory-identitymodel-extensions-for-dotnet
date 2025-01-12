@@ -1,29 +1,5 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using Microsoft.IdentityModel.Logging;
@@ -46,16 +22,16 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Default constructor for <see cref="CompressionProviderFactory"/>.
+        /// Initializes a new instance of the <see cref="CompressionProviderFactory"/> class.
         /// </summary>
         public CompressionProviderFactory()
         {
         }
 
         /// <summary>
-        /// Constructor that creates a deep copy of given <see cref="CompressionProviderFactory"/> object.
+        /// Initializes a new instance of the <see cref="CompressionProviderFactory"/> class.
         /// </summary>
-        /// <param name="other"><see cref="CompressionProviderFactory"/> to copy from.</param>
+        /// <param name="other">The <see cref="CompressionProviderFactory"/> to copy from.</param>
         public CompressionProviderFactory(CompressionProviderFactory other)
         {
             if (other == null)
@@ -79,10 +55,10 @@ namespace Microsoft.IdentityModel.Tokens
         public ICompressionProvider CustomCompressionProvider { get; set; }
 
         /// <summary>
-        /// Answers if an algorithm is supported.
+        /// Determines whether the specified algorithm is supported.
         /// </summary>
-        /// <param name="algorithm">the name of the crypto algorithm.</param>
-        /// <returns>true if the algorithm is supported, false otherwise.</returns>
+        /// <param name="algorithm">The name of the cryptographic algorithm.</param>
+        /// <returns><see langword="true"/> if the algorithm is supported; otherwise, <see langword="false"/>.</returns>
         public virtual bool IsSupportedAlgorithm(string algorithm)
         {
             if (CustomCompressionProvider != null && CustomCompressionProvider.IsSupportedAlgorithm(algorithm))
@@ -97,11 +73,22 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Returns a <see cref="ICompressionProvider"/> for a specific algorithm.
+        /// Creates a <see cref="ICompressionProvider"/> for a specified compression algorithm.
         /// </summary>
-        /// <param name="algorithm">the decompression algorithm.</param>
-        /// <returns>a <see cref="ICompressionProvider"/>.</returns>
+        /// <param name="algorithm">The compression algorithm.</param>
+        /// <returns>An instance of <see cref="ICompressionProvider"/> for the specified algorithm.</returns>
         public ICompressionProvider CreateCompressionProvider(string algorithm)
+        {
+            return CreateCompressionProvider(algorithm, TokenValidationParameters.DefaultMaximumTokenSizeInBytes);
+        }
+
+        /// <summary>
+        /// Creates a <see cref="ICompressionProvider"/> for a specific compression algorithm with a maximum deflate size limit.
+        /// </summary>
+        /// <param name="algorithm">The compression algorithm.</param>
+        /// <param name="maximumDeflateSize">The maximum size limit (in characters) for deflate compression processing.</param>
+        /// <returns>A <see cref="ICompressionProvider"/> instance.</returns>
+        public ICompressionProvider CreateCompressionProvider(string algorithm, int maximumDeflateSize)
         {
             if (string.IsNullOrEmpty(algorithm))
                 throw LogHelper.LogArgumentNullException(nameof(algorithm));
@@ -110,10 +97,9 @@ namespace Microsoft.IdentityModel.Tokens
                 return CustomCompressionProvider;
 
             if (algorithm.Equals(CompressionAlgorithms.Deflate))
-                return new DeflateCompressionProvider();
+                return new DeflateCompressionProvider { MaximumDeflateSize = maximumDeflateSize };
 
             throw LogHelper.LogExceptionMessage(new NotSupportedException(LogHelper.FormatInvariant(LogMessages.IDX10652, LogHelper.MarkAsNonPII(algorithm))));
         }
     }
 }
-

@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -32,6 +8,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.IdentityModel.Abstractions;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 
@@ -107,37 +84,55 @@ namespace Microsoft.IdentityModel.Protocols
         public async Task<string> GetDocumentAsync(string address, CancellationToken cancel)
         {
             if (string.IsNullOrWhiteSpace(address))
-                throw LogHelper.LogArgumentNullException("address");
+                throw LogHelper.LogArgumentNullException(nameof(address));
 
             if (!Utility.IsHttps(address) && RequireHttps)
-                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX20108, address), nameof(address)));
+                throw LogHelper.LogExceptionMessage(
+                    new ArgumentException(
+                        LogHelper.FormatInvariant(
+                            LogMessages.IDX20108,
+                            LogHelper.MarkAsNonPII(address)),
+                        nameof(address)));
 
             Exception unsuccessfulHttpResponseException;
             HttpResponseMessage response;
             try
             {
-                LogHelper.LogVerbose(LogMessages.IDX20805, address);
+                if (LogHelper.IsEnabled(EventLogLevel.Verbose))
+                    LogHelper.LogVerbose(LogMessages.IDX20805, LogHelper.MarkAsNonPII(address));
+
                 var httpClient = _httpClient ?? _defaultHttpClient;
                 var uri = new Uri(address, UriKind.RelativeOrAbsolute);
-                response = await SendAsyncAndRetryOnNetworkError(httpClient, uri).ConfigureAwait(false);
+                response = await SendAndRetryOnNetworkErrorAsync(httpClient, uri).ConfigureAwait(false);
 
                 var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                     return responseContent;
 
-                unsuccessfulHttpResponseException = new IOException(LogHelper.FormatInvariant(LogMessages.IDX20807, address, response, responseContent));
+                unsuccessfulHttpResponseException = new IOException(
+                    LogHelper.FormatInvariant(
+                        LogMessages.IDX20807,
+                        LogHelper.MarkAsNonPII(address),
+                        response,
+                        responseContent));
+
                 unsuccessfulHttpResponseException.Data.Add(StatusCode, response.StatusCode);
                 unsuccessfulHttpResponseException.Data.Add(ResponseContent, responseContent);
             }
             catch (Exception ex)
             {
-                throw LogHelper.LogExceptionMessage(new IOException(LogHelper.FormatInvariant(LogMessages.IDX20804, address), ex));
+                throw LogHelper.LogExceptionMessage(
+                    new IOException(
+                        LogHelper.FormatInvariant(
+                            LogMessages.IDX20804,
+                            LogHelper.MarkAsNonPII(address)),
+                        ex));
             }
 
             throw LogHelper.LogExceptionMessage(unsuccessfulHttpResponseException);
         }
 
-        private async Task<HttpResponseMessage> SendAsyncAndRetryOnNetworkError(HttpClient httpClient, Uri uri)
+        private async Task<HttpResponseMessage> SendAndRetryOnNetworkErrorAsync(HttpClient httpClient, Uri uri)
         {
             int maxAttempt = 2;
             HttpResponseMessage response = null;
@@ -155,12 +150,14 @@ namespace Microsoft.IdentityModel.Protocols
 
                     if (response.StatusCode.Equals(HttpStatusCode.RequestTimeout) || response.StatusCode.Equals(HttpStatusCode.ServiceUnavailable))
                     {
-                        if (i < maxAttempt) // logging exception details and that we will attempt to retry document retrieval
+                        if (i < maxAttempt && LogHelper.IsEnabled(EventLogLevel.Informational)) // logging exception details and that we will attempt to retry document retrieval
                             LogHelper.LogInformation(LogHelper.FormatInvariant(LogMessages.IDX20808, response.StatusCode, await response.Content.ReadAsStringAsync().ConfigureAwait(false), message.RequestUri));
                     }
                     else // if the exception type does not indicate the need to retry we should break
                     {
-                        LogHelper.LogWarning(LogHelper.FormatInvariant(LogMessages.IDX20809, message.RequestUri, response.StatusCode, await response.Content.ReadAsStringAsync().ConfigureAwait(false)));
+                        if (LogHelper.IsEnabled(EventLogLevel.Warning))
+                            LogHelper.LogWarning(LogHelper.FormatInvariant(LogMessages.IDX20809, message.RequestUri, response.StatusCode, await response.Content.ReadAsStringAsync().ConfigureAwait(false)));
+
                         break;
                     }
                 }

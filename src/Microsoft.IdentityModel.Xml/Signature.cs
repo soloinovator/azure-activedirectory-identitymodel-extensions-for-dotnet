@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
@@ -148,5 +124,81 @@ namespace Microsoft.IdentityModel.Xml
                     cryptoProviderFactory.ReleaseSignatureProvider(signatureProvider);
             }
         }
+
+#nullable enable
+        internal SignatureValidationError? Verify(
+            SecurityKey key,
+            CryptoProviderFactory cryptoProviderFactory,
+#pragma warning disable CA1801 // Review unused parameters
+            CallContext callContext)
+#pragma warning restore CA1801
+        {
+            if (key is null)
+                return SignatureValidationError.NullParameter(
+                    nameof(key),
+                    ValidationError.GetCurrentStackFrame());
+
+            if (cryptoProviderFactory is null)
+                return SignatureValidationError.NullParameter(
+                    nameof(cryptoProviderFactory),
+                    ValidationError.GetCurrentStackFrame());
+
+            if (SignedInfo is null)
+                return new SignatureValidationError(
+                    new MessageDetail(LogMessages.IDX30212),
+                    ValidationFailureType.SignatureValidationFailed,
+                    typeof(SecurityTokenInvalidSignatureException),
+                    ValidationError.GetCurrentStackFrame());
+
+            if (!cryptoProviderFactory.IsSupportedAlgorithm(SignedInfo.SignatureMethod, key))
+                return new SignatureValidationError(
+                    new MessageDetail(LogMessages.IDX30207, SignedInfo.SignatureMethod, cryptoProviderFactory.GetType()),
+                    ValidationFailureType.XmlValidationFailed,
+                    typeof(SecurityTokenInvalidSignatureException),
+                    ValidationError.GetCurrentStackFrame());
+
+            var signatureProvider = cryptoProviderFactory.CreateForVerifying(key, SignedInfo.SignatureMethod);
+            if (signatureProvider is null)
+                return new SignatureValidationError(
+                    new MessageDetail(LogMessages.IDX30203, cryptoProviderFactory, key, SignedInfo.SignatureMethod),
+                    ValidationFailureType.XmlValidationFailed,
+                    typeof(SecurityTokenInvalidSignatureException),
+                    ValidationError.GetCurrentStackFrame());
+
+            SignatureValidationError? validationError = null;
+
+            try
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    SignedInfo.GetCanonicalBytes(memoryStream);
+                    if (!signatureProvider.Verify(memoryStream.ToArray(), Convert.FromBase64String(SignatureValue)))
+                    {
+                        validationError = new SignatureValidationError(
+                            new MessageDetail(LogMessages.IDX30200, cryptoProviderFactory, key),
+                            ValidationFailureType.XmlValidationFailed,
+                            typeof(SecurityTokenInvalidSignatureException),
+                            ValidationError.GetCurrentStackFrame());
+                    }
+                }
+
+                if (validationError is null)
+                {
+                    validationError = SignedInfo.Verify(cryptoProviderFactory, callContext);
+                    validationError?.AddCurrentStackFrame();
+                }
+            }
+            finally
+            {
+                if (signatureProvider is not null)
+                    cryptoProviderFactory.ReleaseSignatureProvider(signatureProvider);
+            }
+
+            if (validationError is not null)
+                return validationError;
+
+            return null; // no error
+        }
+#nullable restore
     }
 }

@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Diagnostics.Tracing;
@@ -57,7 +33,12 @@ namespace Microsoft.IdentityModel.Logging
         /// <summary>
         /// Flag which indicates whether or not PII is shown in logs. False by default.
         /// </summary>
-        public static bool ShowPII { get; set; } = false;
+        public static bool ShowPII { get; set; }
+
+        /// <summary>
+        /// Flag which indicates whether or not complete <see cref="SecurityArtifact"/> is shown in logs when <see cref="ShowPII"/> is set to true. False by default.
+        /// </summary>
+        public static bool LogCompleteSecurityArtifact { get; set; }
 
         /// <summary>
         /// String that is used in place of any arguments to log messages if the 'ShowPII' flag is set to false.
@@ -65,9 +46,14 @@ namespace Microsoft.IdentityModel.Logging
         public static string HiddenPIIString { get; } = "[PII of type '{0}' is hidden. For more details, see https://aka.ms/IdentityModel/PII.]";
 
         /// <summary>
+        /// String that is used in place of any arguments to log messages if the 'LogCompleteSecurityArtifact' flag is set to false.
+        /// </summary>
+        public static string HiddenSecurityArtifactString { get; } = "[Security Artifact of type '{0}' is hidden. For more details, see https://aka.ms/IdentityModel/SecurityArtifactLogging.]";
+
+        /// <summary>
         /// Indicates whether or the log message header (contains library version, date/time, and PII debugging information) has been written.
         /// </summary>
-        public static bool HeaderWritten { get; set; } = false;
+        public static bool HeaderWritten { get; set; }
 
         /// <summary>
         /// The log message that indicates the current library version.
@@ -312,7 +298,7 @@ namespace Microsoft.IdentityModel.Logging
                 // Obtain the current library version dynamically.
                 WriteAlways(string.Format(CultureInfo.InvariantCulture, _versionLogMessage, typeof(IdentityModelEventSource).GetTypeInfo().Assembly.GetName().Version.ToString()));
                 WriteAlways(string.Format(CultureInfo.InvariantCulture, _dateLogMessage, DateTime.UtcNow));
-                if (ShowPII) 
+                if (ShowPII)
                     WriteAlways(_piiOnLogMessage);
                 else
                     WriteAlways(_piiOffLogMessage);
@@ -354,7 +340,7 @@ namespace Microsoft.IdentityModel.Logging
         {
             get; set;
         }
-        
+
         private static string PrepareMessage(EventLevel level, string message, params object[] args)
         {
             if (message == null)

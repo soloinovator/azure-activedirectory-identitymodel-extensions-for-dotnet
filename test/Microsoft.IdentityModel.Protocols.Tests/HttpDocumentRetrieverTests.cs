@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -31,6 +7,7 @@ using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.IdentityModel.TestUtils;
 using Xunit;
 
@@ -78,31 +55,27 @@ namespace Microsoft.IdentityModel.Protocols.Tests
             TestUtilities.AssertFailIfErrors("HttpDocumentRetrieverTests_GetSets", context.Errors);
         }
 
-        [Theory, MemberData(nameof(GetMetadataTheoryData))]
-        public void GetMetadataTest(DocumentRetrieverTheoryData theoryData)
+        [Theory, MemberData(nameof(GetMetadataTheoryData), DisableDiscoveryEnumeration = true)]
+        public async Task GetMetadataTest(DocumentRetrieverTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.GetMetadataTest", theoryData);
             try
             {
-                string doc = theoryData.DocumentRetriever.GetDocumentAsync(theoryData.Address, CancellationToken.None).Result;
+                string doc = await theoryData.DocumentRetriever.GetDocumentAsync(theoryData.Address, CancellationToken.None);
                 Assert.NotNull(doc);
                 theoryData.ExpectedException.ProcessNoException();
             }
-            catch (AggregateException aex)
+            catch (Exception ex)
             {
-                aex.Handle((x) =>
+                if (ex.Data.Count > 0)
                 {
-                    if (x.Data.Count > 0)
-                    {
-                        if (!x.Data.Contains(HttpDocumentRetriever.StatusCode))
-                            context.AddDiff("!x.Data.Contains(HttpResponseConstants.StatusCode)");
-                        if (!x.Data.Contains(HttpDocumentRetriever.ResponseContent))
-                            context.AddDiff("!x.Data.Contains(HttpResponseConstants.ResponseContent)");
-                        IdentityComparer.AreEqual(x.Data[HttpDocumentRetriever.StatusCode], theoryData.ExpectedStatusCode, context);
-                    }
-                    theoryData.ExpectedException.ProcessException(x);
-                    return true;
-                });
+                    if (!ex.Data.Contains(HttpDocumentRetriever.StatusCode))
+                        context.AddDiff("!x.Data.Contains(HttpResponseConstants.StatusCode)");
+                    if (!ex.Data.Contains(HttpDocumentRetriever.ResponseContent))
+                        context.AddDiff("!x.Data.Contains(HttpResponseConstants.ResponseContent)");
+                    IdentityComparer.AreEqual(ex.Data[HttpDocumentRetriever.StatusCode], theoryData.ExpectedStatusCode, context);
+                }
+                theoryData.ExpectedException.ProcessException(ex);
             }
 
             TestUtilities.AssertFailIfErrors(context);

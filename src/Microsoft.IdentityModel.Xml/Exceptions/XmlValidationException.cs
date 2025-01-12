@@ -1,32 +1,13 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Runtime.Serialization;
+#pragma warning disable IDE0005 // Using directive is unnecessary.
+using System.Text;
+#pragma warning restore IDE0005 // Using directive is unnecessary.
+using Microsoft.IdentityModel.Tokens;
 
 namespace Microsoft.IdentityModel.Xml
 {
@@ -36,6 +17,11 @@ namespace Microsoft.IdentityModel.Xml
     [Serializable]
     public class XmlValidationException : XmlException
     {
+        [NonSerialized]
+        private string _stackTrace;
+
+        private ValidationError _validationError;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="XmlValidationException"/> class.
         /// </summary>
@@ -72,6 +58,44 @@ namespace Microsoft.IdentityModel.Xml
         protected XmlValidationException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+        }
+
+        /// <summary>
+        /// Sets the <see cref="ValidationError"/> that caused the exception.
+        /// </summary>
+        /// <param name="validationError"></param>
+        internal void SetValidationError(ValidationError validationError)
+        {
+            _validationError = validationError;
+        }
+
+        /// <summary>
+        /// Gets the stack trace that is captured when the exception is created.
+        /// </summary>
+        public override string StackTrace
+        {
+            get
+            {
+                if (_stackTrace == null)
+                {
+                    if (_validationError == null)
+                        return base.StackTrace;
+#if NET8_0_OR_GREATER
+                    _stackTrace = new StackTrace(_validationError.StackFrames).ToString();
+#else
+                    StringBuilder sb = new();
+                    foreach (StackFrame frame in _validationError.StackFrames)
+                    {
+                        sb.Append(frame.ToString());
+                        sb.Append(Environment.NewLine);
+                    }
+
+                    _stackTrace = sb.ToString();
+#endif
+                }
+
+                return _stackTrace;
+            }
         }
     }
 }

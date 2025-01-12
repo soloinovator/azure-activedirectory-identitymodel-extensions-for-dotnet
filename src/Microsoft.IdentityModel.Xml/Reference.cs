@@ -1,36 +1,11 @@
-//----------7--------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Xml;
-using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using static Microsoft.IdentityModel.Logging.LogHelper;
 using static Microsoft.IdentityModel.Xml.XmlUtil;
@@ -151,6 +126,38 @@ namespace Microsoft.IdentityModel.Xml
                 throw LogValidationException(LogMessages.IDX30201, Uri ?? Id);
         }
 
+#nullable enable
+        /// <summary>
+        /// Verifies that the <see cref="DigestValue" /> equals the hashed value of the <see cref="TokenStream"/> after
+        /// <see cref="Transforms"/> have been applied.
+        /// </summary>
+        /// <param name="cryptoProviderFactory">supplies the <see cref="HashAlgorithm"/>.</param>
+        /// <param name="callContext"> contextual information for diagnostics.</param>
+        /// <exception cref="ArgumentNullException">if <paramref name="cryptoProviderFactory"/> is null.</exception>
+        internal SignatureValidationError? Verify(
+            CryptoProviderFactory cryptoProviderFactory,
+#pragma warning disable CA1801 // Review unused parameters
+            CallContext callContext)
+#pragma warning restore CA1801
+        {
+            if (cryptoProviderFactory == null)
+                return SignatureValidationError.NullParameter(
+                    nameof(cryptoProviderFactory),
+                    ValidationError.GetCurrentStackFrame());
+
+            if (!Utility.AreEqual(ComputeDigest(cryptoProviderFactory), Convert.FromBase64String(DigestValue)))
+                return new SignatureValidationError(
+                    new MessageDetail(
+                        LogMessages.IDX30201,
+                        Uri ?? Id),
+                    ValidationFailureType.XmlValidationFailed,
+                    typeof(SecurityTokenInvalidSignatureException),
+                    ValidationError.GetCurrentStackFrame());
+
+            return null;
+        }
+#nullable restore
+
         /// <summary>
         /// Writes into a stream and then hashes the bytes.
         /// </summary>
@@ -161,13 +168,13 @@ namespace Microsoft.IdentityModel.Xml
         {
             using (var stream = new MemoryStream())
             {
-                using (var writer = XmlDictionaryWriter.CreateTextWriter(Stream.Null))
+                using (var writer = XmlWriter.Create(stream, new XmlWriterSettings { CloseOutput = false }))
+                using (var dictionaryWriter = XmlDictionaryWriter.CreateDictionaryWriter(writer))
                 {
-                    tokenStream.WriteTo(writer);
-                    writer.Flush();
+                    tokenStream.WriteTo(dictionaryWriter);
+                    dictionaryWriter.Flush();
                 }
 
-                stream.Flush();
                 stream.Position = 0;
                 return hash.ComputeHash(stream);
             }
@@ -199,15 +206,17 @@ namespace Microsoft.IdentityModel.Xml
 
             try
             {
-                // apply identity transform, just get the hash without any transforms
-                if (Transforms.Count == 0)
-                    return ProcessAndDigest(TokenStream, hashAlg);
-
                 // specification requires last transform to be a canonicalizing transform
                 // see: https://www.w3.org/TR/2001/PR-xmldsig-core-20010820/#sec-ReferenceProcessingModel
-                for (int i = 0;  i < Transforms.Count; i++)
+                // - If the data object is a node-set and the next transform requires octets, the signature application 
+                //   MUST attempt to convert the node-set to an octet stream using the specified canonicalization algorithm.
+                for (int i = 0; i < Transforms.Count; i++)
                     TokenStream = Transforms[i].Process(TokenStream);
 
+                if (CanonicalizingTransfrom == null)
+                    return ProcessAndDigest(TokenStream, hashAlg);
+
+                // only run canonicalizing transform if it was specified
                 return CanonicalizingTransfrom.ProcessAndDigest(TokenStream, hashAlg);
             }
             finally

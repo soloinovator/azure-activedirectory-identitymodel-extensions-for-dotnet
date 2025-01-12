@@ -1,29 +1,5 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 namespace Microsoft.IdentityModel.Tokens
 {
@@ -33,12 +9,12 @@ namespace Microsoft.IdentityModel.Tokens
     public class AuthenticatedEncryptionResult
     {
         /// <summary>
-        /// Initializes a new <see cref="AuthenticatedEncryptionResult"/>
+        /// Initializes a new instance of the <see cref="AuthenticatedEncryptionResult"/> class.
         /// </summary>
-        /// <param name="key">the <see cref="SecurityKey"/> used during <see cref="AuthenticatedEncryptionProvider.Encrypt(byte[], byte[])"/></param>
-        /// <param name="ciphertext">protected text.</param>
-        /// <param name="iv">the initialization vector used.</param>
-        /// <param name="authenticationTag">the bytes that need be passed to <see cref="AuthenticatedEncryptionProvider.Decrypt(byte[], byte[], byte[], byte[])"/>.</param>
+        /// <param name="key">The <see cref="SecurityKey"/> used during <see cref="AuthenticatedEncryptionProvider.Encrypt(byte[], byte[])"/>.</param>
+        /// <param name="ciphertext">The encrypted text.</param>
+        /// <param name="iv">The initialization vector used.</param>
+        /// <param name="authenticationTag">The authentication tag that was created during the encyption and needs <see cref="AuthenticatedEncryptionProvider.Decrypt(byte[], byte[], byte[], byte[])"/>.</param>
         public AuthenticatedEncryptionResult(SecurityKey key, byte[] ciphertext, byte[] iv, byte[] authenticationTag)
         {
             Key = key;
@@ -63,7 +39,7 @@ namespace Microsoft.IdentityModel.Tokens
         public byte[] IV { get; private set; }
 
         /// <summary>
-        /// Gets the authentication tag
+        /// Gets the authentication tag.
         /// </summary>
         public byte[] AuthenticationTag { get; private set; }
     }

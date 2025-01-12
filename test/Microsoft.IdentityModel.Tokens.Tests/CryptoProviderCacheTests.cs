@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Threading.Tasks;
@@ -62,7 +38,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
         /// Tests that a cache key generated from a <see cref="SignatureProvider"/> or a set of components are equal.
         /// </summary>
         /// <param name="theoryData"></param>
-        [Theory, MemberData(nameof(GetCacheKeyTheoryData))]
+        [Theory, MemberData(nameof(GetCacheKeyTheoryData), DisableDiscoveryEnumeration = true)]
         public void GetCacheKey(CryptoProviderCacheTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.GetCacheKey", theoryData);
@@ -189,7 +165,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             }
         }
 
-        [Theory, MemberData(nameof(TryAddTheoryData))]
+        [Theory, MemberData(nameof(TryAddTheoryData), DisableDiscoveryEnumeration = true)]
         public void TryAdd(CryptoProviderCacheTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.TryAdd", theoryData);
@@ -291,7 +267,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                         SignatureProvider = new SymmetricSignatureProvider(KeyingMaterial.DefaultSymmetricSecurityKey_384, ALG.HmacSha384, true),
                         TestId = nameof(KeyingMaterial.DefaultSymmetricSecurityKey_256)
                     },
-#if NET472 || NET_CORE 
+#if NET472 || NET_CORE
                     // ecdsa signature provider should be added to the cache on NET472 and NET_CORE.
                     new CryptoProviderCacheTheoryData
                     {
@@ -301,7 +277,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                         TestId = nameof(KeyingMaterial.Ecdsa256Key_Public)
                     },
 #else
-                    // ecdsa signature provider should NOT be added to the cache on NET452 and NET461.
+                    // ecdsa signature provider should NOT be added to the cache on NET461.
                     new CryptoProviderCacheTheoryData
                     {
                         Added = false,
@@ -320,7 +296,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
         /// Tests that a cache key generated from a <see cref="SignatureProvider"/> or a set of components are equal.
         /// </summary>
         /// <param name="theoryData"></param>
-        [Theory, MemberData(nameof(TryGetSignatureProviderTheoryData))]
+        [Theory, MemberData(nameof(TryGetSignatureProviderTheoryData), DisableDiscoveryEnumeration = true)]
         public void TryGetSignatureProvider(CryptoProviderCacheTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.TryGetSignatureProvider", theoryData);
@@ -455,6 +431,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
 
         /// <summary>
         /// Checks that the Dispose() method is properly called on the InMemoryCryptoProviderCache.
+        /// </summary>
         [Fact]
         public void CryptoProviderCacheDispose()
         {
@@ -470,7 +447,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             TestUtilities.AssertFailIfErrors(context);
         }
 
-        [Theory, MemberData(nameof(TryRemoveTheoryData))]
+        [Theory, MemberData(nameof(TryRemoveTheoryData), DisableDiscoveryEnumeration = true)]
         public void TryRemove(CryptoProviderCacheTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.TryRemove", theoryData);
@@ -496,7 +473,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
             {
                 var cache = CreateCacheForTesting();
 
-                var theoryData =  new TheoryData<CryptoProviderCacheTheoryData>
+                var theoryData = new TheoryData<CryptoProviderCacheTheoryData>
                 {
                     new CryptoProviderCacheTheoryData
                     {
@@ -553,7 +530,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                     SignatureProvider = signatureProvider,
                     TestId = "SignatureProviderRemoved"
                 });
-                
+
                 // SignatureProvider was removed above, so should not be found
                 theoryData.Add(new CryptoProviderCacheTheoryData
                 {
@@ -626,7 +603,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
 
 #if NETCOREAPP
         public CryptoProviderCache CryptoProviderCache { get; set; }
-#elif NET452 || NET461 || NET472
+#elif NET462 || NET472
         public CryptoProviderCache CryptoProviderCache { get; set; }
 #endif
 
@@ -655,9 +632,9 @@ namespace Microsoft.IdentityModel.Tokens.Tests
     public class InMemoryCryptoProviderCachePublic : InMemoryCryptoProviderCache
     {
         public InMemoryCryptoProviderCachePublic() : base(new CryptoProviderCacheOptions(), TaskCreationOptions.None, 50)
-        {}
+        { }
 
-        public bool DisposeCalled { get; set; } = false;
+        public bool DisposeCalled { get; set; }
 
         public string GetCacheKeyPublic(SignatureProvider signatureProvider)
         {

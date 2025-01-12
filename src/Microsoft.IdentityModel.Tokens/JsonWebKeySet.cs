@@ -1,35 +1,14 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Text.Json.Serialization;
+using System.Threading;
+using Microsoft.IdentityModel.Abstractions;
 using Microsoft.IdentityModel.Logging;
-using Microsoft.IdentityModel.Json;
+using Microsoft.IdentityModel.Tokens.Json;
 
 namespace Microsoft.IdentityModel.Tokens
 {
@@ -37,10 +16,11 @@ namespace Microsoft.IdentityModel.Tokens
     /// Contains a collection of <see cref="JsonWebKey"/> that can be populated from a json string.
     /// </summary>
     /// <remarks>provides support for https://datatracker.ietf.org/doc/html/rfc7517.</remarks>
-    [JsonObject]
     public class JsonWebKeySet
     {
-        private const string _className = "Microsoft.IdentityModel.Tokens.JsonWebKeySet";
+        internal const string ClassName = "Microsoft.IdentityModel.Tokens.JsonWebKeySet";
+        private Dictionary<string, object> _additionalData;
+        private string _jsonData = string.Empty;
 
         /// <summary>
         /// Returns a new instance of <see cref="JsonWebKeySet"/>.
@@ -75,14 +55,18 @@ namespace Microsoft.IdentityModel.Tokens
             if (string.IsNullOrEmpty(json))
                 throw LogHelper.LogArgumentNullException(nameof(json));
 
+            _jsonData = json;
+
             try
             {
-                LogHelper.LogVerbose(LogMessages.IDX10806, json, LogHelper.MarkAsNonPII(_className));
-                JsonConvert.PopulateObject(json, this);
+                if (LogHelper.IsEnabled(EventLogLevel.Verbose))
+                    LogHelper.LogVerbose(LogMessages.IDX10806, json, LogHelper.MarkAsNonPII(ClassName));
+
+                JsonWebKeySetSerializer.Read(json, this);
             }
             catch (Exception ex)
             {
-                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX10805, json, LogHelper.MarkAsNonPII(_className)), ex));
+                throw LogHelper.LogExceptionMessage(new ArgumentException(LogHelper.FormatInvariant(LogMessages.IDX10805, json, LogHelper.MarkAsNonPII(ClassName)), ex));
             }
         }
 
@@ -90,13 +74,18 @@ namespace Microsoft.IdentityModel.Tokens
         /// When deserializing from JSON any properties that are not defined will be placed here.
         /// </summary>
         [JsonExtensionData]
-        public virtual IDictionary<string, object> AdditionalData { get; } = new Dictionary<string, object>();
+        public IDictionary<string, object> AdditionalData => _additionalData ??
+            Interlocked.CompareExchange(ref _additionalData, new Dictionary<string, object>(StringComparer.Ordinal), null) ??
+            _additionalData;
 
         /// <summary>
         /// Gets the <see cref="IList{JsonWebKey}"/>.
-        /// </summary>       
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = JsonWebKeySetParameterNames.Keys, Required = Required.Default)]
-        public IList<JsonWebKey> Keys { get; private set; } = new List<JsonWebKey>();
+        /// </summary>
+        [JsonPropertyName(JsonWebKeySetParameterNames.Keys)]
+#if NET8_0_OR_GREATER
+        [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+#endif
+        public IList<JsonWebKey> Keys { get; internal set; } = new List<JsonWebKey>();
 
         /// <summary>
         /// Default value for the flag that controls whether unresolved JsonWebKeys will be included in the resulting collection of <see cref="GetSigningKeys"/> method.
@@ -108,7 +97,24 @@ namespace Microsoft.IdentityModel.Tokens
         /// Flag that controls whether unresolved JsonWebKeys will be included in the resulting collection of <see cref="GetSigningKeys"/> method.
         /// </summary>
         [DefaultValue(true)]
+        [JsonIgnore]
         public bool SkipUnresolvedJsonWebKeys { get; set; } = DefaultSkipUnresolvedJsonWebKeys;
+
+        /// <summary>
+        /// The original string used to create this instance if a string was provided.
+        /// </summary>
+        [JsonIgnore]
+        internal string JsonData
+        {
+            get
+            {
+                return _jsonData;
+            }
+            set
+            {
+                _jsonData = value;
+            }
+        }
 
         /// <summary>
         /// Returns the JsonWebKeys as a <see cref="IList{SecurityKey}"/>.
@@ -122,7 +128,7 @@ namespace Microsoft.IdentityModel.Tokens
             foreach (var webKey in Keys)
             {
                 // skip if "use" (Public Key Use) parameter is not empty or "sig".
-                // https://datatracker.ietf.org/doc/html/rfc7517#section-4.2
+                // https://datatracker.ietf.org/doc/html/rfc7517#section-4-2
                 if (!string.IsNullOrEmpty(webKey.Use) && !webKey.Use.Equals(JsonWebKeyUseNames.Sig))
                 {
                     string convertKeyInfo = LogHelper.FormatInvariant(LogMessages.IDX10808, webKey, webKey.Use);

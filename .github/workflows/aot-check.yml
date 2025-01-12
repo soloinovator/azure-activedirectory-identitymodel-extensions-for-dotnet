@@ -1,0 +1,33 @@
+name: "AOT Check"
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    branches: [ "dev" ]
+
+jobs:
+  analyze:
+    runs-on: windows-latest
+    name: "AOT check"
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    - name: Setup .NET 9.0.x
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Runs powershell script
+      id: aot-powershell
+      run: build\test-aot.ps1 'net8.0'
+

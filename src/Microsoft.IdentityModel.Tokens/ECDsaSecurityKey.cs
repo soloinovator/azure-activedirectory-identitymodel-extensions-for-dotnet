@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Security.Cryptography;
@@ -46,23 +22,23 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Returns a new instance of <see cref="ECDsaSecurityKey"/>.
+        /// Initializes a new instance of the <see cref="ECDsaSecurityKey"/> class.
         /// </summary>
-        /// <param name="ecdsa"><see cref="System.Security.Cryptography.ECDsa"/></param>
+        /// <param name="ecdsa">The <see cref="ECDsa"/>.</param>
         public ECDsaSecurityKey(ECDsa ecdsa)
         {
             ECDsa = ecdsa ?? throw LogHelper.LogArgumentNullException(nameof(ecdsa));
         }
 
         /// <summary>
-        /// <see cref="System.Security.Cryptography.ECDsa"/> instance used to initialize the key.
+        /// The <see cref="ECDsa"/> instance used to initialize the key.
         /// </summary>
         public ECDsa ECDsa { get; private set; }
 
         /// <summary>
         /// Gets a bool indicating if a private key exists.
         /// </summary>
-        /// <return>true if it has a private key; otherwise, false.</return>
+        /// <return><see langword="true"/> if it has a private key; otherwise, <see langword="false"/>.</return>
         [System.Obsolete("HasPrivateKey method is deprecated, please use FoundPrivateKey instead.")]
         public override bool HasPrivateKey
         {
@@ -87,9 +63,13 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Gets an enum indicating if a private key exists.
+        /// Gets a value indicating the existence of the private key.
         /// </summary>
-        /// <return>'Exists' if private key exists for sure; 'DoesNotExist' if private key doesn't exist for sure; 'Unknown' if we cannot determine.</return>
+        /// <returns>
+        /// <see cref="PrivateKeyStatus.Exists"/> if the private key exists.
+        /// <see cref="PrivateKeyStatus.DoesNotExist"/> if the private key does not exist.
+        /// <see cref="PrivateKeyStatus.Unknown"/> if the existence of the private key cannot be determined.
+        /// </returns>
         public override PrivateKeyStatus PrivateKeyStatus
         {
             get
@@ -99,7 +79,7 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Gets <see cref="System.Security.Cryptography.ECDsa"/> key size.
+        /// Gets the <see cref="ECDsa"/> key size.
         /// </summary>
         public override int KeySize
         {
@@ -112,11 +92,11 @@ namespace Microsoft.IdentityModel.Tokens
         /// <summary>
         /// Determines whether the <see cref="ECDsaSecurityKey"/> can compute a JWK thumbprint.
         /// </summary>
-        /// <returns><c>true</c> if JWK thumbprint can be computed; otherwise, <c>false</c>.</returns>
-        /// <remarks>https://datatracker.ietf.org/doc/html/rfc7638</remarks>
+        /// <returns><see langword="true"/> if JWK thumbprint can be computed; otherwise, <see langword="false"/>.</returns>
+        /// <remarks>See: <see href="https://datatracker.ietf.org/doc/html/rfc7638"/>.</remarks>
         public override bool CanComputeJwkThumbprint()
         {
-#if NET472 || NETSTANDARD2_0
+#if NET472 || NETSTANDARD2_0 || NET6_0_OR_GREATER
             if (ECDsaAdapter.SupportsECParameters())
                 return true;
 #endif
@@ -124,13 +104,13 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Computes a sha256 hash over the <see cref="ECDsaSecurityKey"/>.
+        /// Computes a SHA256 hash over the <see cref="ECDsaSecurityKey"/>.
         /// </summary>
         /// <returns>A JWK thumbprint.</returns>
-        /// <remarks>https://datatracker.ietf.org/doc/html/rfc7638</remarks>
+        /// <remarks>See: <see href="https://datatracker.ietf.org/doc/html/rfc7638"/>.</remarks>
         public override byte[] ComputeJwkThumbprint()
         {
-#if NET472 || NETSTANDARD2_0
+#if NET472 || NETSTANDARD2_0 || NET6_0_OR_GREATER
             if (ECDsaAdapter.SupportsECParameters())
             {
                 ECParameters parameters = ECDsa.ExportParameters(false);

@@ -1,29 +1,5 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.CryptoProviderCacheOptions
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using Microsoft.IdentityModel.Logging;
@@ -40,14 +16,13 @@ namespace Microsoft.IdentityModel.Tokens
         private int _sizeLimit = DefaultSizeLimit;
 
         /// <summary>
-        /// Default value for <see cref="SizeLimit"/>.
+        /// Default value for the cache size limit (<see cref="SizeLimit"/>). Default is 1000.
         /// </summary>
         public static readonly int DefaultSizeLimit = 1000;
 
         /// <summary>
-        /// Gets or sets the size of the cache (in number of items). 
-        /// 20% of the cache will be evicted whenever the cache gets to 95% of this size.
-        /// Items will be evicted from least recently used to most recently used.
+        /// Gets or sets the size limit of the cache (in number of items). 
+        /// When the cache reaches 95% of this size, 20% of the least recently used items will be evicted.
         /// </summary>
         public int SizeLimit
         {

@@ -1,33 +1,9 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
-using System.Globalization;
 using System.Threading.Tasks;
+using Microsoft.IdentityModel.Abstractions;
 using Microsoft.IdentityModel.Logging;
 
 namespace Microsoft.IdentityModel.Tokens
@@ -36,11 +12,10 @@ namespace Microsoft.IdentityModel.Tokens
     /// Defines a cache for crypto providers.
     /// Current support is limited to <see cref="SignatureProvider"/> only.
     /// </summary>
-    public class InMemoryCryptoProviderCache: CryptoProviderCache, IDisposable
-
+    public class InMemoryCryptoProviderCache : CryptoProviderCache, IDisposable
     {
         internal CryptoProviderCacheOptions _cryptoProviderCacheOptions;
-        private bool _disposed = false;
+        private bool _disposed;
         private readonly EventBasedLRUCache<string, SignatureProvider> _signingSignatureProviders;
         private readonly EventBasedLRUCache<string, SignatureProvider> _verifyingSignatureProviders;
 
@@ -51,39 +26,56 @@ namespace Microsoft.IdentityModel.Tokens
         {
         }
 
-        internal CryptoProviderFactory CryptoProviderFactory { get; set; }
-
         /// <summary>
         /// Creates a new instance of <see cref="InMemoryCryptoProviderCache"/> using the specified <paramref name="cryptoProviderCacheOptions"/>.
         /// </summary>
         /// <param name="cryptoProviderCacheOptions">The options used to configure the <see cref="InMemoryCryptoProviderCache"/>.</param>
-        public InMemoryCryptoProviderCache(CryptoProviderCacheOptions cryptoProviderCacheOptions)
+        public InMemoryCryptoProviderCache(CryptoProviderCacheOptions cryptoProviderCacheOptions) : this(cryptoProviderCacheOptions, TaskCreationOptions.None)
         {
-            if (cryptoProviderCacheOptions == null)
-                throw LogHelper.LogArgumentNullException(nameof(cryptoProviderCacheOptions));
-
-            _cryptoProviderCacheOptions = cryptoProviderCacheOptions;
-            _signingSignatureProviders = new EventBasedLRUCache<string, SignatureProvider>(cryptoProviderCacheOptions.SizeLimit, removeExpiredValues: false, comparer: StringComparer.Ordinal) { OnItemRemoved = (SignatureProvider signatureProvider) => signatureProvider.CryptoProviderCache = null };
-            _verifyingSignatureProviders = new EventBasedLRUCache<string, SignatureProvider>(cryptoProviderCacheOptions.SizeLimit, removeExpiredValues: false, comparer: StringComparer.Ordinal) { OnItemRemoved = (SignatureProvider signatureProvider) => signatureProvider.CryptoProviderCache = null };
         }
 
-        /// <summary>
-        /// Creates a new instance of <see cref="InMemoryCryptoProviderCache"/> using the specified <paramref name="cryptoProviderCacheOptions"/>.
-        /// </summary>
-        /// <param name="cryptoProviderCacheOptions">The options used to configure the <see cref="InMemoryCryptoProviderCache"/>.</param>
-        /// <param name="options">Options used to create the event queue thread.</param>
-        /// <param name="tryTakeTimeout">The time used in ms for the timeout interval of the event queue. Defaults to 500 ms.</param>
         internal InMemoryCryptoProviderCache(CryptoProviderCacheOptions cryptoProviderCacheOptions, TaskCreationOptions options, int tryTakeTimeout = 500)
         {
-            if (cryptoProviderCacheOptions == null)
-                throw LogHelper.LogArgumentNullException(nameof(cryptoProviderCacheOptions));
-
+            _cryptoProviderCacheOptions = cryptoProviderCacheOptions ?? throw LogHelper.LogArgumentNullException(nameof(cryptoProviderCacheOptions));
             if (tryTakeTimeout <= 0)
                 throw LogHelper.LogArgumentException<ArgumentException>(nameof(tryTakeTimeout), $"{nameof(tryTakeTimeout)} must be greater than zero");
 
-            _cryptoProviderCacheOptions = cryptoProviderCacheOptions;
-            _signingSignatureProviders = new EventBasedLRUCache<string, SignatureProvider>(cryptoProviderCacheOptions.SizeLimit, options, StringComparer.Ordinal, false) { OnItemRemoved = (SignatureProvider signatureProvider) => signatureProvider.CryptoProviderCache = null };
-            _verifyingSignatureProviders = new EventBasedLRUCache<string, SignatureProvider>(cryptoProviderCacheOptions.SizeLimit, options, StringComparer.Ordinal, false) { OnItemRemoved = (SignatureProvider signatureProvider) => signatureProvider.CryptoProviderCache = null };
+            _signingSignatureProviders = new EventBasedLRUCache<string, SignatureProvider>(
+                cryptoProviderCacheOptions.SizeLimit,
+                options,
+                comparer: StringComparer.Ordinal)
+            {
+                OnItemMovedToCompactedList = SetCryptoProviderCacheToNull,
+                OnItemRemovedFromCompactedList = DisposeSignatureProvider,
+                OnShouldRemoveFromCompactedList = IsCacheNullAndRefCountZero
+            };
+
+            _verifyingSignatureProviders = new EventBasedLRUCache<string, SignatureProvider>(
+                cryptoProviderCacheOptions.SizeLimit,
+                options,
+                comparer: StringComparer.Ordinal)
+            {
+                OnItemMovedToCompactedList = SetCryptoProviderCacheToNull,
+                OnItemRemovedFromCompactedList = DisposeSignatureProvider,
+                OnShouldRemoveFromCompactedList = IsCacheNullAndRefCountZero
+            };
+        }
+
+        internal CryptoProviderFactory CryptoProviderFactory { get; set; }
+
+        private static void DisposeSignatureProvider(SignatureProvider signatureProvider)
+        {
+            signatureProvider.Dispose();
+        }
+
+        private void SetCryptoProviderCacheToNull(SignatureProvider signatureProvider)
+        {
+            signatureProvider.CryptoProviderCache = null;
+        }
+
+        private static bool IsCacheNullAndRefCountZero(SignatureProvider signatureProvider)
+        {
+            return signatureProvider.CryptoProviderCache == null && signatureProvider.RefCount == 0;
         }
 
         /// <summary>
@@ -126,12 +118,7 @@ namespace Microsoft.IdentityModel.Tokens
 
         private static string GetCacheKeyPrivate(SecurityKey securityKey, string algorithm, string typeofProvider)
         {
-            return string.Format(CultureInfo.InvariantCulture,
-                                 "{0}-{1}-{2}-{3}",
-                                 securityKey.GetType(),
-                                 securityKey.InternalId,
-                                 algorithm,
-                                 typeofProvider);
+            return $"{securityKey.GetType()}-{securityKey.InternalId}-{algorithm}-{typeofProvider}";
         }
 
         /// <summary>
@@ -173,7 +160,7 @@ namespace Microsoft.IdentityModel.Tokens
         /// <param name="securityKey">the key that is used to by the crypto provider.</param>
         /// <param name="algorithm">the algorithm that is used by the crypto provider.</param>
         /// <param name="typeofProvider">the typeof the crypto provider obtained by calling object.GetType().</param>
-        /// <param name="willCreateSignatures">a bool to indicate if the <see cref="SignatureProvider"/> will be used to sign.</param>
+        /// <param name="willCreateSignatures">If true, the provider will be used for creating signatures.</param>
         /// <param name="signatureProvider">the <see cref="SignatureProvider"/> if found.</param>
         /// <exception cref="ArgumentNullException">if securityKey is null.</exception>
         /// <exception cref="ArgumentNullException">if algorithm is null or empty string.</exception>
@@ -223,11 +210,13 @@ namespace Microsoft.IdentityModel.Tokens
 
             try
             {
-                return signatureProviderCache.TryRemove(cacheKey, out SignatureProvider provider);
+                return signatureProviderCache.TryRemove(cacheKey);
             }
             catch (Exception ex)
             {
-                LogHelper.LogWarning(LogHelper.FormatInvariant(LogMessages.IDX10699, cacheKey, ex));
+                if (LogHelper.IsEnabled(EventLogLevel.Warning))
+                    LogHelper.LogWarning(LogHelper.FormatInvariant(LogMessages.IDX10699, cacheKey, ex));
+
                 return false;
             }
         }
@@ -261,7 +250,7 @@ namespace Microsoft.IdentityModel.Tokens
             }
         }
 
-#region FOR TESTING (INTERNAL ONLY)
+        #region FOR TESTING (INTERNAL ONLY)
         /// <summary>
         /// FOR TESTING ONLY.
         /// </summary>

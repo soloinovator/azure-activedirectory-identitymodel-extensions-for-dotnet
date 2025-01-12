@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -34,6 +10,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.IdentityModel.Abstractions;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens.Saml;
 using static Microsoft.IdentityModel.Logging.LogHelper;
@@ -45,7 +22,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
     /// <summary>
     /// A <see cref="SecurityTokenHandler"/> designed for creating and validating Saml2 Tokens. See: http://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf
     /// </summary>
-    public class Saml2SecurityTokenHandler : SecurityTokenHandler
+    public partial class Saml2SecurityTokenHandler : SecurityTokenHandler
     {
         private const string _actor = "Actor";
         private const string _className = "Microsoft.IdentityModel.Tokens.Saml2.Saml2SecurityTokenHandler";
@@ -120,16 +97,13 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                 using (var sr = new StringReader(token))
                 {
                     var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit };
-#if NET45
-                    settings.XmlResolver = null;
-#endif                 
                     using (var reader = XmlDictionaryReader.CreateDictionaryReader(XmlReader.Create(sr, settings)))
                     {
                         return CanReadToken(reader);
                     }
                 }
             }
-            catch(Exception)
+            catch (Exception)
             {
                 return false;
             }
@@ -197,33 +171,50 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         }
 
         /// <inheritdoc/>
-        public override Task<TokenValidationResult> ValidateTokenAsync(string token, TokenValidationParameters validationParameters)
+        public override async Task<TokenValidationResult> ValidateTokenAsync(string token, TokenValidationParameters validationParameters)
         {
             try
             {
-                var claimsPrincipal = ValidateToken(token, validationParameters, out var validatedToken);
-                return Task.FromResult(new TokenValidationResult
+                if (string.IsNullOrEmpty(token))
+                    throw LogArgumentNullException(nameof(token));
+
+                if (validationParameters == null)
+                    throw LogArgumentNullException(nameof(validationParameters));
+
+                if (token.Length > MaximumTokenSizeInBytes)
+                    throw LogExceptionMessage(new ArgumentException(FormatInvariant(TokenLogMessages.IDX10209, LogHelper.MarkAsNonPII(token.Length), LogHelper.MarkAsNonPII(MaximumTokenSizeInBytes))));
+
+                validationParameters = await SamlTokenUtilities.PopulateValidationParametersWithCurrentConfigurationAsync(validationParameters).ConfigureAwait(false);
+
+                var samlToken = ValidateSignature(token, validationParameters);
+                if (samlToken == null)
+                    throw LogExceptionMessage(
+                        new SecurityTokenValidationException(FormatInvariant(TokenLogMessages.IDX10254, LogHelper.MarkAsNonPII(_className), LogHelper.MarkAsNonPII("ValidateToken"), LogHelper.MarkAsNonPII(_className), LogHelper.MarkAsNonPII("ValidateSignature"), LogHelper.MarkAsNonPII(typeof(Saml2SecurityToken)))));
+                var claimsPrincipal = ValidateToken(samlToken, token, validationParameters, out var validatedToken);
+
+                return new TokenValidationResult
                 {
                     SecurityToken = validatedToken,
                     ClaimsIdentity = claimsPrincipal?.Identities.First(),
                     IsValid = true,
-                });
+                };
             }
             catch (Exception ex)
             {
-                return Task.FromResult(new TokenValidationResult
+                return new TokenValidationResult
                 {
                     IsValid = false,
                     Exception = ex
-                });
+                };
             }
         }
+
 
         /// <summary>
         /// Reads and validates a <see cref="Saml2SecurityToken"/>.
         /// </summary>
         /// <param name="reader">A <see cref="XmlReader"/> reader positioned at a saml2 assertion element.</param>
-        /// <param name="validationParameters">Contains validation parameters for the <see cref="Saml2SecurityToken"/>.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <param name="validatedToken">The <see cref="Saml2SecurityToken"/> that was validated.</param>
         /// <exception cref="ArgumentNullException">if <paramref name="reader"/> is null.</exception>
         /// <exception cref="ArgumentNullException">if <paramref name="validationParameters"/> is null.</exception>
@@ -237,6 +228,8 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
 
             if (validationParameters == null)
                 throw LogArgumentNullException(nameof(validationParameters));
+
+            validationParameters = SamlTokenUtilities.PopulateValidationParametersWithCurrentConfigurationAsync(validationParameters).ConfigureAwait(false).GetAwaiter().GetResult();
 
             var samlToken = ReadSaml2Token(reader);
             if (samlToken == null)
@@ -252,7 +245,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// Reads and validates a <see cref="Saml2SecurityToken"/>.
         /// </summary>
         /// <param name="token">The Saml2 token.</param>
-        /// <param name="validationParameters">Contains validation parameters for the <see cref="Saml2SecurityToken"/>.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <param name="validatedToken">The <see cref="Saml2SecurityToken"/> that was validated.</param>
         /// <exception cref="ArgumentNullException"><paramref name="token"/> is null or empty.</exception>
         /// <exception cref="ArgumentNullException"><paramref name="validationParameters"/> is null.</exception>
@@ -262,21 +255,14 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// <returns>A <see cref="ClaimsPrincipal"/> representing the identity contained in the token.</returns>
         public override ClaimsPrincipal ValidateToken(string token, TokenValidationParameters validationParameters, out SecurityToken validatedToken)
         {
-            if (string.IsNullOrEmpty(token))
-                throw LogArgumentNullException(nameof(token));
+            var tokenValidationResult = ValidateTokenAsync(token, validationParameters).ConfigureAwait(false).GetAwaiter().GetResult();
+            if (!tokenValidationResult.IsValid)
+            {
+                throw tokenValidationResult.Exception;
+            }
 
-            if (validationParameters == null)
-                throw LogArgumentNullException(nameof(validationParameters));
-
-            if (token.Length > MaximumTokenSizeInBytes)
-                throw LogExceptionMessage(new ArgumentException(FormatInvariant(TokenLogMessages.IDX10209, LogHelper.MarkAsNonPII(token.Length), LogHelper.MarkAsNonPII(MaximumTokenSizeInBytes))));
-
-            var samlToken = ValidateSignature(token, validationParameters);
-            if (samlToken == null)
-                throw LogExceptionMessage(
-                    new SecurityTokenValidationException(FormatInvariant(TokenLogMessages.IDX10254, LogHelper.MarkAsNonPII(_className), LogHelper.MarkAsNonPII("ValidateToken"), LogHelper.MarkAsNonPII(_className), LogHelper.MarkAsNonPII("ValidateSignature"), LogHelper.MarkAsNonPII(typeof(Saml2SecurityToken)))));
-
-            return ValidateToken(samlToken, token, validationParameters, out validatedToken);
+            validatedToken = tokenValidationResult.SecurityToken;
+            return new ClaimsPrincipal(tokenValidationResult.ClaimsIdentity);
         }
 
         private ClaimsPrincipal ValidateToken(Saml2SecurityToken samlToken, string token, TokenValidationParameters validationParameters, out SecurityToken validatedToken)
@@ -294,7 +280,10 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
             if (validationParameters.SaveSigninToken)
                 identity.BootstrapContext = samlToken.Assertion.CanonicalString;
 
-            LogHelper.LogInformation(TokenLogMessages.IDX10241, token);
+            if (LogHelper.IsEnabled(EventLogLevel.Informational))
+                LogHelper.LogInformation(
+                    TokenLogMessages.IDX10241,
+                    LogHelper.MarkAsUnsafeSecurityArtifact(token, t => t.ToString()));
 
             return new ClaimsPrincipal(identity);
         }
@@ -303,7 +292,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// Validates the first SubjectConfirmationData
         /// </summary>
         /// <param name="samlToken">the Saml2 token that is being validated.</param>
-        /// <param name="validationParameters">validation parameters.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <exception cref="ArgumentNullException">If <paramref name="samlToken"/> is null.</exception>
         /// <exception cref="ArgumentNullException">If <paramref name="samlToken"/>.Assertion is null.</exception>
         /// <exception cref="ArgumentNullException">If <paramref name="validationParameters"/> is null.</exception>
@@ -331,7 +320,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// </summary>
         /// <param name="key">The <see cref="SecurityKey"/> that signed the <see cref="SecurityToken"/>.</param>
         /// <param name="securityToken">The <see cref="Saml2SecurityToken"/> to validate.</param>
-        /// <param name="validationParameters">The current <see cref="TokenValidationParameters"/>.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <remarks>If the <see cref="Saml2SecurityToken.SigningKey"/> is a <see cref="X509SecurityKey"/> then the X509Certificate2 will be validated using the CertificateValidator.</remarks>
         protected virtual void ValidateIssuerSecurityKey(SecurityKey key, Saml2SecurityToken securityToken, TokenValidationParameters validationParameters)
         {
@@ -344,8 +333,8 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// <param name="notBefore">The <see cref="DateTime"/> value found in the <see cref="Saml2SecurityToken"/>.</param>
         /// <param name="expires">The <see cref="DateTime"/> value found in the <see cref="Saml2SecurityToken"/>.</param>
         /// <param name="securityToken">The <see cref="Saml2SecurityToken"/> being validated.</param>
-        /// <param name="validationParameters"><see cref="TokenValidationParameters"/> required for validation.</param>
-        /// <remarks><see cref="Validators.ValidateLifetime"/> for additional details.</remarks>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
+        /// <remarks><see cref="Validators.ValidateLifetime(DateTime?, DateTime?, SecurityToken, TokenValidationParameters)"/> for additional details.</remarks>
         protected virtual void ValidateLifetime(DateTime? notBefore, DateTime? expires, SecurityToken securityToken, TokenValidationParameters validationParameters)
         {
             Validators.ValidateLifetime(notBefore, expires, securityToken, validationParameters);
@@ -356,7 +345,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// </summary>
         /// <param name="expirationTime">expiration time.</param>
         /// <param name="securityToken">the Saml2 token that is being validated.</param>
-        /// <param name="validationParameters">validation parameters.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <remarks>By default no validation is performed. Validation requires that <see cref="TokenValidationParameters.TokenReplayCache"/> has been set.</remarks>
         protected virtual void ValidateTokenReplay(DateTime? expirationTime, string securityToken, TokenValidationParameters validationParameters)
         {
@@ -379,7 +368,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// Validates that the signature.
         /// </summary>
         /// <param name="token">A Saml2 token.</param>
-        /// <param name="validationParameters"><see cref="TokenValidationParameters"/> that will be used during validation.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <exception cref="ArgumentNullException">If <paramref name="token"/> is null or whitespace.</exception>
         /// <exception cref="ArgumentNullException">If <paramref name="validationParameters"/> is null.</exception>
         /// <exception cref="SecurityTokenValidationException">If <see cref="ReadSaml2Token(string)"/> return null.</exception>
@@ -440,7 +429,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                 {
                     // remember that key was matched for throwing exception SecurityTokenSignatureKeyNotFoundException
                     keyMatched = true;
-                    keys = new List<SecurityKey> { key };
+                    keys = [key];
                 }
             }
 
@@ -450,7 +439,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                 // 1. User specified delegate: IssuerSigningKeyResolver returned null
                 // 2. ResolveIssuerSigningKey returned null
                 // Try all the keys. This is the degenerate case, not concerned about perf.
-                keys = TokenUtilities.GetAllSigningKeys(validationParameters);
+                keys = TokenUtilities.GetAllSigningKeys(validationParameters: validationParameters);
             }
 
             // keep track of exceptions thrown, keys that were tried
@@ -467,7 +456,10 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                         Validators.ValidateAlgorithm(samlToken.Assertion.Signature.SignedInfo.SignatureMethod, key, samlToken, validationParameters);
 
                         samlToken.Assertion.Signature.Verify(key, validationParameters.CryptoProviderFactory ?? key.CryptoProviderFactory);
-                        LogHelper.LogInformation(TokenLogMessages.IDX10242, token);
+
+                        if (LogHelper.IsEnabled(EventLogLevel.Informational))
+                            LogHelper.LogInformation(TokenLogMessages.IDX10242, token);
+
                         samlToken.SigningKey = key;
                         return samlToken;
                     }
@@ -490,14 +482,8 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                 if (keyMatched)
                     throw LogHelper.LogExceptionMessage(new SecurityTokenInvalidSignatureException(LogHelper.FormatInvariant(TokenLogMessages.IDX10514, keysAttempted, samlToken.Assertion.Signature.KeyInfo, exceptionStrings, samlToken)));
 
-                if (samlToken.Assertion.Conditions != null)
-                    InternalValidators.ValidateLifetimeAndIssuerAfterSignatureNotValidatedSaml(
-                        samlToken,
-                        samlToken.Assertion.Conditions.NotBefore,
-                        samlToken.Assertion.Conditions.NotOnOrAfter,
-                        samlToken.Assertion.Signature.KeyInfo.ToString(),
-                        validationParameters,
-                        exceptionStrings);
+                ValidateIssuer(samlToken.Issuer, samlToken, validationParameters);
+                ValidateConditions(samlToken, validationParameters);
             }
 
             if (keysAttempted.Length > 0)
@@ -511,7 +497,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// </summary>
         /// <param name="token">The <see cref="string"/> representation of the token that is being validated.</param>
         /// <param name="samlToken">The <see cref="Saml2SecurityToken"/> that is being validated.</param>
-        /// <param name="validationParameters"><see cref="TokenValidationParameters"/> that will be used during validation.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <returns>Returns a <see cref="SecurityKey"/> to use for signature validation.</returns>
         /// <exception cref="ArgumentNullException">If <paramref name="samlToken"/> is null.</exception>
         /// <exception cref="ArgumentNullException">If <paramref name="validationParameters"/> is null.</exception>
@@ -599,7 +585,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// Reads and validates a SAML 2.0 token using the XmlReader.
         /// </summary>
         /// <param name="reader">A <see cref="XmlReader"/> reader positioned at a <see cref="Saml2Assertion"/> element.</param>
-        /// <param name="validationParameters"> validation parameters for the <see cref="Saml2SecurityToken"/>.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <returns>An instance of <see cref="Saml2SecurityToken"/>.</returns>
         /// <exception cref="NotSupportedException">Currently not supported.</exception>
         public override SecurityToken ReadToken(XmlReader reader, TokenValidationParameters validationParameters)
@@ -657,7 +643,14 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
             else if (SetDefaultTimesOnTokenCreation)
                 conditions.NotOnOrAfter = DateTime.UtcNow + TimeSpan.FromMinutes(TokenLifetimeInMinutes);
 
-            if (!string.IsNullOrEmpty(tokenDescriptor.Audience))
+            if (tokenDescriptor.Audiences.Count > 0)
+            {
+                var audienceRestriction = new Saml2AudienceRestriction(tokenDescriptor.Audiences);
+                if (!string.IsNullOrEmpty(tokenDescriptor.Audience))
+                    audienceRestriction.Audiences.Add(tokenDescriptor.Audience);
+                conditions.AudienceRestrictions.Add(audienceRestriction);
+            }
+            else if (!string.IsNullOrEmpty(tokenDescriptor.Audience))
                 conditions.AudienceRestrictions.Add(new Saml2AudienceRestriction(tokenDescriptor.Audience));
 
             return conditions;
@@ -1009,7 +1002,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// Validates the Lifetime and Audience conditions.
         /// </summary>
         /// <param name="samlToken">a <see cref="Saml2SecurityToken"/> that contains the <see cref="Saml2Conditions"/>.</param>
-        /// <param name="validationParameters"><see cref="TokenValidationParameters"/> required for validation.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <exception cref="ArgumentNullException">If <paramref name="samlToken"/> is null.</exception>
         /// <exception cref="ArgumentNullException">If <paramref name="validationParameters"/> is null.</exception>
         /// <exception cref="ArgumentNullException">If <paramref name="samlToken"/>.Assertion' is null.</exception>
@@ -1050,7 +1043,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
 
                 ValidateAudience(audienceRestriction.Audiences, samlToken, validationParameters);
             }
-            
+
             if (validationParameters.RequireAudience && !foundAudienceRestriction)
                 throw LogExceptionMessage(new Saml2SecurityTokenException(LogMessages.IDX13002));
         }
@@ -1059,7 +1052,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// Validates the OneTimeUse condition.
         /// </summary>
         /// <param name="securityToken">The <see cref="Saml2SecurityToken"/> that is being validated.</param>
-        /// <param name="validationParameters"><see cref="TokenValidationParameters"/> required for validation.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         protected virtual void ValidateOneTimeUseCondition(Saml2SecurityToken securityToken, TokenValidationParameters validationParameters)
         {
             throw LogExceptionMessage(new SecurityTokenValidationException(LogMessages.IDX13510));
@@ -1084,7 +1077,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
 
             Saml2Attribute actorAttribute = null;
             var claims = new Collection<Claim>();
-            
+
             // search through attribute values to see if the there is an embedded actor.
             foreach (string value in attribute.Values)
             {
@@ -1135,7 +1128,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                 }
             }
 
-            identity.Actor = new ClaimsIdentity(claims);
+            identity.Actor = ClaimsIdentityFactory.Create(claims);
             SetClaimsIdentityActorFromAttribute(actorAttribute, identity.Actor, issuer);
         }
 
@@ -1158,7 +1151,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
                     ProcessAuthenticationStatement(authnStatement, identity, issuer);
                 else if (statement is Saml2AuthorizationDecisionStatement authzStatement)
                     ProcessAuthorizationDecisionStatement(authzStatement, identity, issuer);
-                else
+                else if (LogHelper.IsEnabled(EventLogLevel.Warning))
                     LogWarning(LogMessages.IDX13516, LogHelper.MarkAsNonPII(statement.GetType()));
             }
         }
@@ -1314,11 +1307,14 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
             var actualIssuer = issuer;
             if (string.IsNullOrWhiteSpace(issuer))
             {
-                LogHelper.LogVerbose(TokenLogMessages.IDX10244, LogHelper.MarkAsNonPII(ClaimsIdentity.DefaultIssuer));
+                if (LogHelper.IsEnabled(EventLogLevel.Verbose))
+                    LogHelper.LogVerbose(TokenLogMessages.IDX10244, LogHelper.MarkAsNonPII(ClaimsIdentity.DefaultIssuer));
+
                 actualIssuer = ClaimsIdentity.DefaultIssuer;
             }
 
             var identity = validationParameters.CreateClaimsIdentity(samlToken, actualIssuer);
+
             ProcessSubject(samlToken.Assertion.Subject, identity, actualIssuer);
             ProcessStatements(samlToken.Assertion.Statements, identity, actualIssuer);
 
@@ -1330,7 +1326,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// </summary>
         /// <param name="audiences">The audiences found in the <see cref="Saml2SecurityToken"/></param>
         /// <param name="securityToken">The <see cref="Saml2SecurityToken"/> that is being validated.</param>
-        /// <param name="validationParameters"><see cref="TokenValidationParameters"/> required for validation.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <remarks><see cref="Validators.ValidateAudience(IEnumerable{string}, SecurityToken, TokenValidationParameters)"/> for additional details.</remarks>
         protected virtual void ValidateAudience(IEnumerable<string> audiences, SecurityToken securityToken, TokenValidationParameters validationParameters)
         {
@@ -1342,7 +1338,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml2
         /// </summary>
         /// <param name="issuer">The issuer to validate</param>
         /// <param name="securityToken">The <see cref="Saml2SecurityToken"/> that is being validated.</param>
-        /// <param name="validationParameters"><see cref="TokenValidationParameters"/> required for validation.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <returns>The issuer to use when creating the <see cref="Claim"/>(s) in the <see cref="ClaimsIdentity"/>.</returns>
         /// <remarks><see cref="Validators.ValidateIssuer(string, SecurityToken, TokenValidationParameters)"/> for additional details.</remarks>
         protected virtual string ValidateIssuer(string issuer, SecurityToken securityToken, TokenValidationParameters validationParameters)

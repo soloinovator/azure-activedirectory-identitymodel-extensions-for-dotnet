@@ -1,35 +1,10 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.IdentityModel.TestUtils;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.IdentityModel.Tokens.Saml;
@@ -81,7 +56,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
             TestUtilities.AssertFailIfErrors($"{this}.GetSets", context.Errors);
         }
 
-        [Theory, MemberData(nameof(MessageTheoryData))]
+        [Theory, MemberData(nameof(MessageTheoryData), DisableDiscoveryEnumeration = true)]
         public void ConstructorTest(WsFederationMessageTheoryData theoryData)
         {
             TestUtilities.WriteHeader($"{this}.ConstructorTest", theoryData);
@@ -114,7 +89,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
             }
         }
 
-        [Theory, MemberData(nameof(WaSignInTheoryData))]
+        [Theory, MemberData(nameof(WaSignInTheoryData), DisableDiscoveryEnumeration = true)]
         public void WaSignIn(WsFederationSigninMessageTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.WaSignIn", theoryData);
@@ -167,7 +142,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
                 {
                     TokenValidationParameters = new TokenValidationParameters
                     {
-                        IssuerSigningKey = new X509SecurityKey(new X509Certificate2(Convert.FromBase64String(_x509DataADFS))),
+                        IssuerSigningKey = new X509SecurityKey(TestUtils.CertificateHelper.LoadX509Certificate(_x509DataADFS)),
                         ValidIssuer = "http://sts.sub2.fracas365.msftonlinerepro.com/adfs/services/trust",
                         ValidAudience = "https://app1.sub2.fracas365.msftonlinerepro.com/sampapp/",
                         ValidateLifetime = false,
@@ -211,7 +186,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
                 QueryString = WsFederationTestUtilities.BuildWaSignInMessage(samlToken, samlSecurityTokenHandler, "saml1" + variation),
                 SecurityToken = samlToken,
                 SecurityTokenHandler = samlSecurityTokenHandler,
-                TestId = "Saml1WriteToken"+variation
+                TestId = "Saml1WriteToken" + variation
             });
 
             theoryData.Add(new WsFederationSigninMessageTheoryData
@@ -272,7 +247,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
                 IssuedAt = Default.IssueInstant,
                 Issuer = Default.Issuer,
                 SigningCredentials = Default.AsymmetricSigningCredentials,
-                Subject = new ClaimsIdentity(claims)
+                Subject = new CaseSensitiveClaimsIdentity(claims)
             };
 
             var token = samlTokenHandler.CreateToken(tokenDescriptor) as SamlSecurityToken;
@@ -291,7 +266,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
                 IssuedAt = Default.IssueInstant,
                 Issuer = Default.Issuer,
                 SigningCredentials = Default.AsymmetricSigningCredentials,
-                Subject = new ClaimsIdentity(claims)
+                Subject = new CaseSensitiveClaimsIdentity(claims)
             };
 
             var token = saml2TokenHandler.CreateToken(tokenDescriptor) as Saml2SecurityToken;
@@ -300,7 +275,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
 
         }
 
-        [Theory, MemberData(nameof(GetTokenTheoryData))]
+        [Theory, MemberData(nameof(GetTokenTheoryData), DisableDiscoveryEnumeration = true)]
         public void GetTokenTest(WsFederationMessageTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.GetTokenTest", theoryData);
@@ -406,7 +381,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
             }
         }
 
-        [Theory, MemberData(nameof(GetTokenParsingStringData))]
+        [Theory, MemberData(nameof(GetTokenParsingStringData), DisableDiscoveryEnumeration = true)]
         public void GetTokenParsingString(WsFederationMessageTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.GetTokenParsingString", theoryData);
@@ -532,7 +507,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
             }
         }
 
-        [Theory, MemberData(nameof(GetTokenAspWsFedHandlerTestTheoryData))]
+        [Theory, MemberData(nameof(GetTokenAspWsFedHandlerTestTheoryData), DisableDiscoveryEnumeration = true)]
         public void GetTokenAspWsFedHandlerTest(WsFederationMessageTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.GetTokenAspWsFedHandlerTest", theoryData);
@@ -571,7 +546,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
             }
         }
 
-        [Theory, MemberData(nameof(GetTokenNegativeTestTheoryData))]
+        [Theory, MemberData(nameof(GetTokenNegativeTestTheoryData), DisableDiscoveryEnumeration = true)]
         public void GetTokenNegativeTest(WsFederationMessageTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.GetTokenNegativeTest", theoryData);
@@ -659,7 +634,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
             }
         }
 
-        [Theory, MemberData(nameof(MessageTheoryData))]
+        [Theory, MemberData(nameof(MessageTheoryData), DisableDiscoveryEnumeration = true)]
         public void ParametersTest(WsFederationMessageTheoryData theoryData)
         {
             TestUtilities.WriteHeader($"{this}.ParametersTest", theoryData);
@@ -738,7 +713,7 @@ namespace Microsoft.IdentityModel.Protocols.WsFederation.Tests
             }
         }
 
-        [Theory, MemberData(nameof(QueryStringTheoryData))]
+        [Theory, MemberData(nameof(QueryStringTheoryData), DisableDiscoveryEnumeration = true)]
         public void QueryStringTest(WsFederationMessageTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.QueryStringTest", theoryData);

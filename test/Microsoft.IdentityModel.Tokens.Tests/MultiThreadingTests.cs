@@ -1,29 +1,5 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.IdentityModel.Tokens.Jwt;
@@ -38,7 +14,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
 {
     public class MultiThreadingTokenTests
     {
-        [Theory, MemberData(nameof(MultiThreadingCreateAndVerifyTestCases))]
+        [Theory, MemberData(nameof(MultiThreadingCreateAndVerifyTestCases), DisableDiscoveryEnumeration = true)]
         public void MultiThreadingCreateAndVerify(MultiThreadingTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.MultiThreadingCreateAndVerify", theoryData);
@@ -49,7 +25,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                 {
                     var jwt = theoryData.JwtSecurityTokenHandler.CreateEncodedJwt(theoryData.TokenDescriptor);
                     var claimsPrincipal = theoryData.JwtSecurityTokenHandler.ValidateToken(theoryData.Jwt, theoryData.ValidationParameters, out SecurityToken _);
-                    var tokenValidationResult = theoryData.JsonWebTokenHandler.ValidateToken(theoryData.Jwt, theoryData.ValidationParameters);
+                    var tokenValidationResult = theoryData.JsonWebTokenHandler.ValidateTokenAsync(theoryData.Jwt, theoryData.ValidationParameters).Result;
 
                     if (tokenValidationResult.Exception != null && tokenValidationResult.IsValid)
                         context.Diffs.Add("tokenValidationResult.IsValid, tokenValidationResult.Exception != null");
@@ -145,7 +121,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                 {
                     Claims = Default.PayloadDictionary,
                     SigningCredentials = new SigningCredentials(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSha256, SecurityAlgorithms.Sha256),
-                    EncryptingCredentials = new EncryptingCredentials(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaOaepKeyWrap, SecurityAlgorithms.Aes128CbcHmacSha256)
+                    EncryptingCredentials = new EncryptingCredentials(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaOAEP, SecurityAlgorithms.Aes128CbcHmacSha256)
                 };
 
                 var tokenValidationParametersEncryptedRsaKW = new TokenValidationParameters
@@ -176,7 +152,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
 
                 var jwtEncryptedDir = jwtSecurityTokenHandler.CreateEncodedJwt(securityTokenDescriptorEncryptedDir);
 
-#if NET452 || NET461 || NET472
+#if NET462 || NET472
                 // RSACng 
                 var securityTokenDescriptorRsaCng = new SecurityTokenDescriptor
                 {
@@ -198,7 +174,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                 {
                     Claims = Default.PayloadDictionary,
                     SigningCredentials = new SigningCredentials(KeyingMaterial.RsaSecurityKeyCng_2048, SecurityAlgorithms.RsaSha256, SecurityAlgorithms.Sha256),
-                    EncryptingCredentials = new EncryptingCredentials(KeyingMaterial.RsaSecurityKeyCng_2048, SecurityAlgorithms.RsaOaepKeyWrap, SecurityAlgorithms.Aes128CbcHmacSha256)
+                    EncryptingCredentials = new EncryptingCredentials(KeyingMaterial.RsaSecurityKeyCng_2048, SecurityAlgorithms.RsaOAEP, SecurityAlgorithms.Aes128CbcHmacSha256)
                 };
 
                 var tokenValidationParametersEncryptedRsaKWCng = new TokenValidationParameters
@@ -259,7 +235,7 @@ namespace Microsoft.IdentityModel.Tokens.Tests
                         TokenDescriptor = securityTokenDescriptorEncryptedDir,
                         ValidationParameters = tokenValidationParametersEncryptedDir
                     },
-#if NET452 || NET461 || NET472
+#if NET462 || NET472
                     new MultiThreadingTheoryData
                     {
                         JwtSecurityTokenHandler = jwtSecurityTokenHandler,
