@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-// Ignore Spelling: Metadata Validator Retreiver
+// Ignore Spelling: Metadata Validator
 
 using System;
 using System.Collections.Generic;
@@ -37,7 +37,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
             {
                 var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
                     theoryData.MetadataAddress,
-                    theoryData.ConfigurationRetreiver,
+                    theoryData.ConfigurationRetriever,
                     theoryData.DocumentRetriever,
                     theoryData.ConfigurationValidator);
 
@@ -60,7 +60,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
             theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>("AccountsGoogleCom")
             {
-                ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                 ConfigurationValidator = new OpenIdConnectConfigurationValidator(),
                 DocumentRetriever = new HttpDocumentRetriever(),
                 MetadataAddress = OpenIdConfigData.AccountsGoogle
@@ -68,7 +68,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
             theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>("AADCommonUrl")
             {
-                ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                 ConfigurationValidator = new OpenIdConnectConfigurationValidator(),
                 DocumentRetriever = new HttpDocumentRetriever(),
                 MetadataAddress = OpenIdConfigData.AADCommonUrl
@@ -76,7 +76,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
             theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>("AADCommonUrlV1")
             {
-                ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                 ConfigurationValidator = new OpenIdConnectConfigurationValidator(),
                 DocumentRetriever = new HttpDocumentRetriever(),
                 MetadataAddress = OpenIdConfigData.AADCommonUrlV1
@@ -84,7 +84,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
             theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>("AADCommonUrlV2")
             {
-                ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                 ConfigurationValidator = new OpenIdConnectConfigurationValidator(),
                 DocumentRetriever = new HttpDocumentRetriever(),
                 MetadataAddress = OpenIdConfigData.AADCommonUrlV2
@@ -99,7 +99,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
             var context = TestUtilities.WriteHeader($"{this}.OpenIdConnectConstructor", theoryData);
             try
             {
-                var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(theoryData.MetadataAddress, theoryData.ConfigurationRetreiver, theoryData.DocumentRetriever, theoryData.ConfigurationValidator);
+                var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(theoryData.MetadataAddress, theoryData.ConfigurationRetriever, theoryData.DocumentRetriever, theoryData.ConfigurationValidator);
                 theoryData.ExpectedException.ProcessNoException();
             }
             catch (Exception ex)
@@ -118,7 +118,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = new OpenIdConnectConfigurationValidator(),
                     DocumentRetriever = new HttpDocumentRetriever(),
                     ExpectedException = ExpectedException.ArgumentNullException("IDX10000:"),
@@ -129,7 +129,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = null,
+                    ConfigurationRetriever = null,
                     ConfigurationValidator = new OpenIdConnectConfigurationValidator(),
                     DocumentRetriever = new HttpDocumentRetriever(),
                     ExpectedException = ExpectedException.ArgumentNullException("IDX10000:"),
@@ -139,7 +139,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = new OpenIdConnectConfigurationValidator(),
                     DocumentRetriever = null,
                     ExpectedException = ExpectedException.ArgumentNullException("IDX10000:"),
@@ -149,7 +149,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = null,
                     DocumentRetriever = new HttpDocumentRetriever(),
                     ExpectedException = ExpectedException.ArgumentNullException("IDX10000:"),
@@ -232,7 +232,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
             waitEvent.Reset();
             signalEvent.Reset();
 
-            TestUtilities.SetField(configurationManager, "_syncAfter", DateTimeOffset.MinValue);
+            TestUtilities.SetField(configurationManager, "_syncAfter", DateTime.MinValue);
             await configurationManager.GetConfigurationAsync(CancellationToken.None);
 
             // InMemoryDocumentRetrieverWithEvents will signal when it is OK to change the MetadataAddress
@@ -276,8 +276,8 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
             catch (Exception firstFetchMetadataFailure)
             {
                 // _syncAfter should not have been changed, because the fetch failed.
-                DateTimeOffset syncAfter = (DateTimeOffset)TestUtilities.GetField(configManager, "_syncAfter");
-                if (syncAfter != DateTimeOffset.MinValue)
+                DateTime syncAfter = (DateTime)TestUtilities.GetField(configManager, "_syncAfter");
+                if (syncAfter != DateTime.MinValue)
                     context.AddDiff($"ConfigurationManager._syncAfter: '{syncAfter}' should equal '{DateTimeOffset.MinValue}'.");
 
                 if (firstFetchMetadataFailure.InnerException == null)
@@ -297,10 +297,10 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
                         context.AddDiff($"Expected exception to contain inner exception for fetch metadata failure.");
 
                     // _syncAfter should not have been changed, because the fetch failed.
-                    syncAfter = (DateTimeOffset)TestUtilities.GetField(configManager, "_syncAfter");
+                    syncAfter = (DateTime)TestUtilities.GetField(configManager, "_syncAfter");
 
-                    if (!IdentityComparer.AreDatesEqualWithEpsilon(requestTime, syncAfter.UtcDateTime, 1))
-                        context.AddDiff($"ConfigurationManager._syncAfter: '{syncAfter.UtcDateTime}' should equal be within 1 second of '{requestTime}'.");
+                    if (!IdentityComparer.AreDatesEqualWithEpsilon(requestTime, syncAfter, 1))
+                        context.AddDiff($"ConfigurationManager._syncAfter: '{syncAfter}' should equal be within 1 second of '{requestTime}'.");
 
                     IdentityComparer.AreEqual(firstFetchMetadataFailure, secondFetchMetadataFailure, context);
                 }
@@ -355,10 +355,10 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
                 IdentityComparer.AreEqual(configuration, theoryData.ExpectedConfiguration, context);
 
                 theoryData.ConfigurationManager.MetadataAddress = theoryData.UpdatedMetadataAddress;
-                TestUtilities.SetField(theoryData.ConfigurationManager, "_syncAfter", theoryData.SyncAfter);
+                TestUtilities.SetField(theoryData.ConfigurationManager, "_syncAfter", theoryData.SyncAfter.UtcDateTime);
                 var updatedConfiguration = await theoryData.ConfigurationManager.GetConfigurationAsync(CancellationToken.None);
-                // we wait 50 ms here to make the task is finished.
-                Thread.Sleep(50);
+                // we wait 100 ms here to make the task is finished.
+                Thread.Sleep(100);
                 updatedConfiguration = await theoryData.ConfigurationManager.GetConfigurationAsync(CancellationToken.None);
                 IdentityComparer.AreEqual(updatedConfiguration, theoryData.ExpectedUpdatedConfiguration, context);
 
@@ -580,19 +580,19 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
             var configuration = await configManager.GetConfigurationAsync(CancellationToken.None);
 
             // force a refresh by setting internal field
-            TestUtilities.SetField(configManager, "_syncAfter", DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
+            TestUtilities.SetField(configManager, "_syncAfter", DateTime.UtcNow.Subtract(TimeSpan.FromHours(1)));
             configuration = await configManager.GetConfigurationAsync(CancellationToken.None);
             // wait 1000ms here because update of config is run as a new task.
             Thread.Sleep(1000);
 
             // check that _syncAfter is greater than DateTimeOffset.UtcNow + AutomaticRefreshInterval
-            DateTimeOffset syncAfter = (DateTimeOffset)TestUtilities.GetField(configManager, "_syncAfter");
+            DateTime syncAfter = (DateTime)TestUtilities.GetField(configManager, "_syncAfter");
             if (syncAfter < minimumRefreshInterval)
                 context.Diffs.Add($"(AutomaticRefreshInterval) syncAfter '{syncAfter}' < DateTimeOffset.UtcNow + configManager.AutomaticRefreshInterval: '{minimumRefreshInterval}'.");
 
             // make same check for RequestRefresh
             // force a refresh by setting internal field
-            TestUtilities.SetField(configManager, "_lastRequestRefresh", DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
+            TestUtilities.SetField(configManager, "_lastRequestRefresh", DateTime.UtcNow.Subtract(TimeSpan.FromHours(1)));
 
             configManager.RequestRefresh();
 
@@ -607,7 +607,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
                 context.Diffs.Add("Refresh is not expected to be requested after GetConfigurationAsync is called");
 
             // check that _syncAfter is greater than DateTimeOffset.UtcNow + AutomaticRefreshInterval
-            syncAfter = (DateTimeOffset)TestUtilities.GetField(configManager, "_syncAfter");
+            syncAfter = (DateTime)TestUtilities.GetField(configManager, "_syncAfter");
             if (syncAfter < minimumRefreshInterval)
                 context.Diffs.Add($"(RequestRefresh) syncAfter '{syncAfter}' < DateTimeOffset.UtcNow + configManager.AutomaticRefreshInterval: '{minimumRefreshInterval}'.");
 
@@ -625,7 +625,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
             configManager = new ConfigurationManager<OpenIdConnectConfiguration>("OpenIdConnectMetadata.json", new OpenIdConnectConfigurationRetriever(), docRetriever);
             var configuration = await configManager.GetConfigurationAsync(CancellationToken.None);
 
-            TestUtilities.SetField(configManager, "_lastRequestRefresh", DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
+            TestUtilities.SetField(configManager, "_lastRequestRefresh", DateTime.UtcNow.Subtract(TimeSpan.FromHours(1)));
             configManager.MetadataAddress = "http://127.0.0.1";
             configManager.RequestRefresh();
             var configuration2 = await configManager.GetConfigurationAsync(CancellationToken.None);
@@ -832,7 +832,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
             TestUtilities.WriteHeader($"{this}.ValidateOpenIdConnectConfigurationTests");
             var context = new CompareContext();
             OpenIdConnectConfiguration configuration;
-            var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(theoryData.MetadataAddress, theoryData.ConfigurationRetreiver, theoryData.DocumentRetriever, theoryData.ConfigurationValidator);
+            var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(theoryData.MetadataAddress, theoryData.ConfigurationRetriever, theoryData.DocumentRetriever, theoryData.ConfigurationValidator);
 
             if (theoryData.PresetCurrentConfiguration)
                 TestUtilities.SetField(configurationManager, "_currentConfiguration", new OpenIdConnectConfiguration() { Issuer = Default.Issuer });
@@ -872,7 +872,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator,
                     DocumentRetriever = new FileDocumentRetriever(),
                     First = true,
@@ -882,7 +882,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     ExpectedException = new ExpectedException(typeof(InvalidOperationException), "IDX21818:", typeof(InvalidConfigurationException)),
@@ -892,7 +892,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     PresetCurrentConfiguration = true,
@@ -903,7 +903,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     ExpectedException = new ExpectedException(typeof(InvalidOperationException), "IDX10810:", typeof(InvalidConfigurationException)),
@@ -913,7 +913,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     PresetCurrentConfiguration = true,
@@ -924,7 +924,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     ExpectedException = new ExpectedException(typeof(InvalidOperationException), "IDX21817:", typeof(InvalidConfigurationException)),
@@ -934,7 +934,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     PresetCurrentConfiguration = true,
@@ -945,7 +945,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     ExpectedException = new ExpectedException(typeof(InvalidOperationException), "IDX10814:", typeof(InvalidConfigurationException)),
@@ -955,7 +955,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
                 theoryData.Add(new ConfigurationManagerTheoryData<OpenIdConnectConfiguration>
                 {
-                    ConfigurationRetreiver = new OpenIdConnectConfigurationRetriever(),
+                    ConfigurationRetriever = new OpenIdConnectConfigurationRetriever(),
                     ConfigurationValidator = openIdConnectConfigurationValidator2,
                     DocumentRetriever = new FileDocumentRetriever(),
                     PresetCurrentConfiguration = true,
@@ -1001,7 +1001,7 @@ namespace Microsoft.IdentityModel.Protocols.OpenIdConnect.Tests
 
             public TimeSpan AutomaticRefreshInterval { get; set; }
 
-            public IConfigurationRetriever<T> ConfigurationRetreiver { get; set; }
+            public IConfigurationRetriever<T> ConfigurationRetriever { get; set; }
 
             public IConfigurationValidator<T> ConfigurationValidator { get; set; }
 
