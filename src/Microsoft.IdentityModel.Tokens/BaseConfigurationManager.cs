@@ -1,35 +1,12 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
-
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Logging;
+using Microsoft.IdentityModel.Tokens.Configuration;
 
 namespace Microsoft.IdentityModel.Tokens
 {
@@ -42,7 +19,9 @@ namespace Microsoft.IdentityModel.Tokens
         private TimeSpan _refreshInterval = DefaultRefreshInterval;
         private TimeSpan _lastKnownGoodLifetime = DefaultLastKnownGoodConfigurationLifetime;
         private BaseConfiguration _lastKnownGoodConfiguration;
-        private DateTime? _lastKnownGoodConfigFirstUse = null;
+        private DateTime? _lastKnownGoodConfigFirstUse;
+
+        internal EventBasedLRUCache<BaseConfiguration, DateTime> _lastKnownGoodConfigurationCache;
 
         /// <summary>
         /// Gets or sets the <see cref="TimeSpan"/> that controls how often an automatic metadata refresh should occur.
@@ -60,31 +39,69 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// 12 hours is the default time interval that afterwards will obtain new configuration.
+        /// Default time interval (12 hours) after which a new configuration is obtained automatically.
         /// </summary>
         public static readonly TimeSpan DefaultAutomaticRefreshInterval = new TimeSpan(0, 12, 0, 0);
 
         /// <summary>
-        /// 1 hour is the default time interval that a last known good configuration will last for.
+        /// Default time interval (1 hour) for which the last known good configuration remains valid.
         /// </summary>
         public static readonly TimeSpan DefaultLastKnownGoodConfigurationLifetime = new TimeSpan(0, 1, 0, 0);
 
         /// <summary>
-        /// 5 minutes is the default time interval that must pass for <see cref="RequestRefresh"/> to obtain a new configuration.
+        /// Default time interval (5 minutes) that must pass for <see cref="RequestRefresh"/> to obtain a new configuration.
         /// </summary>
         public static readonly TimeSpan DefaultRefreshInterval = new TimeSpan(0, 0, 5, 0);
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseConfigurationManager"/> class.
+        /// </summary>
+        public BaseConfigurationManager()
+            : this(new LKGConfigurationCacheOptions())
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseConfigurationManager"/> class.
+        /// </summary>
+        /// <param name="options">The event queue task creation option.</param>
+        public BaseConfigurationManager(LKGConfigurationCacheOptions options)
+        {
+            if (options == null)
+                throw LogHelper.LogArgumentNullException(nameof(options));
+
+            _lastKnownGoodConfigurationCache = new EventBasedLRUCache<BaseConfiguration, DateTime>(
+                options.LastKnownGoodConfigurationSizeLimit,
+                options.TaskCreationOptions,
+                options.BaseConfigurationComparer,
+                options.RemoveExpiredValues);
+        }
 
         /// <summary>
         /// Obtains an updated version of <see cref="BaseConfiguration"/> if the appropriate refresh interval has passed.
         /// This method may return a cached version of the configuration.
         /// </summary>
-        /// <param name="cancel">CancellationToken</param>
+        /// <param name="cancel">A cancellation token that can be used to cancel the asynchronous operation.</param>
         /// <returns>Configuration of type Configuration.</returns>
-        /// <remarks>This method on the base class throws a <see cref="NotImplementedException"/> as it is meant to be
-        /// overridden by the class that extends it.</remarks>
+        /// <remarks>This method on the base class throws a <see cref="NotImplementedException"/>
+        /// as it is meant to be overridden by the class that extends it.</remarks>
         public virtual Task<BaseConfiguration> GetBaseConfigurationAsync(CancellationToken cancel)
         {
-            throw new NotImplementedException();
+            throw LogHelper.LogExceptionMessage(
+                new NotImplementedException(
+                    LogHelper.FormatInvariant(
+                        LogMessages.IDX10267,
+                        LogHelper.MarkAsNonPII("public virtual Task<BaseConfiguration> GetBaseConfigurationAsync(CancellationToken cancel)"),
+                        LogHelper.MarkAsNonPII(GetType().FullName))));
+        }
+
+        /// <summary>
+        /// Gets all valid last known good configurations.
+        /// </summary>
+        /// <returns>A collection of all valid last known good configurations.</returns>
+        internal BaseConfiguration[] GetValidLkgConfigurations()
+        {
+            return _lastKnownGoodConfigurationCache.ToArray().Where(x => x.Value.Value > DateTime.UtcNow).Select(x => x.Key).ToArray();
         }
 
         /// <summary>
@@ -94,17 +111,15 @@ namespace Microsoft.IdentityModel.Tokens
         {
             get
             {
-                // only set this value the first time the last known good configuration is used for validation
-                // AND if there is actually a LKG set
-                if (_lastKnownGoodConfigFirstUse == null && _lastKnownGoodConfiguration != null)
-                    _lastKnownGoodConfigFirstUse = DateTime.UtcNow;
-
                 return _lastKnownGoodConfiguration;
             }
             set
             {
                 _lastKnownGoodConfiguration = value ?? throw LogHelper.LogArgumentNullException(nameof(value));
-                _lastKnownGoodConfigFirstUse = null; // reset this value as a new last known good configuration was set (and has not been used yet)
+                _lastKnownGoodConfigFirstUse = DateTime.UtcNow;
+
+                // LRU cache will remove the expired configuration
+                _lastKnownGoodConfigurationCache.SetValue(_lastKnownGoodConfiguration, DateTime.UtcNow + LastKnownGoodLifetime, DateTime.UtcNow + LastKnownGoodLifetime);
             }
         }
 
@@ -129,12 +144,12 @@ namespace Microsoft.IdentityModel.Tokens
         public string MetadataAddress { get; set; }
 
         /// <summary>
-        /// 5 minutes is the minimum value for automatic refresh. <see cref="AutomaticRefreshInterval"/> can not be set less than this value.
+        /// Minimum time interval (5 minutes) for automatic refresh. <see cref="AutomaticRefreshInterval"/> cannot be set to less than this value.
         /// </summary>
         public static readonly TimeSpan MinimumAutomaticRefreshInterval = new TimeSpan(0, 0, 5, 0);
 
         /// <summary>
-        /// 1 second is the minimum time interval that must pass for <see cref="RequestRefresh"/> to  obtain new configuration.
+        /// Minimum time interval (1 second) that must pass before calling <see cref="RequestRefresh"/> to obtain new configuration.
         /// </summary>
         public static readonly TimeSpan MinimumRefreshInterval = new TimeSpan(0, 0, 0, 1);
 
@@ -154,12 +169,12 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Indicates whether the last known good feature should be used, true by default.
+        /// Gets or sets a value indicating whether to use the last known good configuration. Default is true.
         /// </summary>
         public bool UseLastKnownGoodConfiguration { get; set; } = true;
 
         /// <summary>
-        /// Indicates whether the last known good configuration is still fresh, depends on when the LKG was first used and it's lifetime.
+        /// Gets a value indicating whether the last known good configuration is still valid, depends on when the LKG was first used and it's lifetime.
         /// </summary>
         // The _lastKnownGoodConfiguration private variable is accessed rather than the property (LastKnownGoodConfiguration) as we do not want this access
         // to trigger a change in _lastKnownGoodConfigFirstUse.

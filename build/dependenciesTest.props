@@ -1,13 +1,32 @@
 <Project>
   <PropertyGroup>
-    <DotNetCoreAppRuntimeVersion>2.1.19</DotNetCoreAppRuntimeVersion>
+    <CoverletCollectorVersion>6.0.2</CoverletCollectorVersion>
+    <BannedApiAnalyzersVersion>3.3.4</BannedApiAnalyzersVersion>
+    <DotNetCoreAppRuntimeVersion>2.1.30</DotNetCoreAppRuntimeVersion>
+    <MicrosoftAzureKeyVaultCryptographyVersion>3.0.5</MicrosoftAzureKeyVaultCryptographyVersion>
+    <MicrosoftNETTestSdkVersion>17.11.1</MicrosoftNETTestSdkVersion>
     <NetStandardVersion>2.0.3</NetStandardVersion>
-    <MicrosoftAzureKeyVaultCryptographyVersion>2.0.5</MicrosoftAzureKeyVaultCryptographyVersion>
-    <MicrosoftDotNetXUnitExtensionsVersion>2.4.0-prerelease-63213-02</MicrosoftDotNetXUnitExtensionsVersion>
-    <MicrosoftIdentityModelProtocolExtensionsVersion>1.0.4.403061554</MicrosoftIdentityModelProtocolExtensionsVersion>
-    <MicrosoftNETTestSdkVersion>15.9.0</MicrosoftNETTestSdkVersion>
-    <SystemIdentityModelTokensJwtVersion4x>4.0.4.403061554</SystemIdentityModelTokensJwtVersion4x>
-    <SystemNetHttpVersion>4.3.4</SystemNetHttpVersion>
-    <XunitVersion>2.4.0</XunitVersion>
+    <NewtonsoftVersion>13.0.3</NewtonsoftVersion>
+    <OpenTelemetryVersion>1.6.0</OpenTelemetryVersion>
+    <SystemNetHttp>4.3.4</SystemNetHttp>
+    <SystemSecurityClaimsVersion>4.3.0</SystemSecurityClaimsVersion>
+    <SystemTextJson>8.0.5</SystemTextJson>
+    <SystemTextRegularExpressions>4.3.1</SystemTextRegularExpressions>
+    <XunitRunnerConsoleVersion>2.9.2</XunitRunnerConsoleVersion>
+    <XunitRunnerVisualStudioVersion>2.8.2</XunitRunnerVisualStudioVersion>
+    <XunitVersion>2.9.2</XunitVersion>
+    <MicrosoftRestClientRuntimeVersion>2.3.24</MicrosoftRestClientRuntimeVersion>
   </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net9.0'))">
+    <XunitRunnerVisualStudioVersion>3.0.0-pre.49</XunitRunnerVisualStudioVersion>
+  </PropertyGroup>
+
+  <!-- MicrosoftExtensionsTimeProviderTesting 8.x has a 6.0.0 target, 9.x does not. -->
+  <PropertyGroup Condition="'$(TargetFramework)' != 'net6.0'">
+    <MicrosoftExtensionsTimeProviderTestingVersion>9.0.0</MicrosoftExtensionsTimeProviderTestingVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0'">
+    <MicrosoftExtensionsTimeProviderTestingVersion>8.10.0</MicrosoftExtensionsTimeProviderTestingVersion>
+  </PropertyGroup>
+  
 </Project>

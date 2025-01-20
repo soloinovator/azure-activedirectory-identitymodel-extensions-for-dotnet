@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 namespace System.IdentityModel.Tokens.Jwt
 {
@@ -31,9 +7,13 @@ namespace System.IdentityModel.Tokens.Jwt
     /// List of registered claims from different sources
     /// https://datatracker.ietf.org/doc/html/rfc7519#section-4
     /// http://openid.net/specs/openid-connect-core-1_0.html#IDToken
+    /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
     /// </summary>
     public struct JwtRegisteredClaimNames
     {
+
+        // Please keep in alphabetical order
+
         /// <summary>
         /// </summary>
         public const string Actort = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Actort;
@@ -44,9 +24,24 @@ namespace System.IdentityModel.Tokens.Jwt
         public const string Acr = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Acr;
 
         /// <summary>
+        /// https://datatracker.ietf.org/doc/html/rfc7519#section-4
+        /// </summary>
+        public const string Alg = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Alg;
+
+        /// <summary>
         /// http://openid.net/specs/openid-connect-core-1_0.html#IDToken
         /// </summary>
         public const string Amr = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Amr;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string Address = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Address;
+
+        /// <summary>
+        /// http://openid.net/specs/openid-connect-core-1_0.html#CodeIDToken
+        /// </summary>
+        public const string AtHash = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.AtHash;
 
         /// <summary>
         /// https://datatracker.ietf.org/doc/html/rfc7519#section-4
@@ -74,14 +69,14 @@ namespace System.IdentityModel.Tokens.Jwt
         public const string CHash = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.CHash;
 
         /// <summary>
-        /// http://openid.net/specs/openid-connect-core-1_0.html#CodeIDToken
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
         /// </summary>
-        public const string AtHash = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.AtHash;
+        public const string Email = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Email;
 
         /// <summary>
         /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
         /// </summary>
-        public const string Email = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Email;
+        public const string EmailVerified = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.EmailVerified;
 
         /// <summary>
         /// https://datatracker.ietf.org/doc/html/rfc7519#section-4
@@ -121,11 +116,26 @@ namespace System.IdentityModel.Tokens.Jwt
         /// <summary>
         /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
         /// </summary>
+        public const string Locale = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Locale;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string MiddleName = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.MiddleName;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
         public const string Name = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Name;
 
         /// <summary>
         /// </summary>
         public const string NameId = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.NameId;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string Nickname = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Nickname;
 
         /// <summary>
         /// https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
@@ -138,8 +148,33 @@ namespace System.IdentityModel.Tokens.Jwt
         public const string Nbf = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Nbf;
 
         /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string PhoneNumber = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.PhoneNumber;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string PhoneNumberVerified = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.PhoneNumberVerified;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string Picture = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Picture;
+
+        /// <summary>
         /// </summary>
         public const string Prn = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Prn;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string PreferredUsername = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.PreferredUsername;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string Profile = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Profile;
 
         /// <summary>
         /// http://openid.net/specs/openid-connect-frontchannel-1_0.html#OPLogout
@@ -161,7 +196,17 @@ namespace System.IdentityModel.Tokens.Jwt
         public const string UniqueName = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.UniqueName;
 
         /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string UpdatedAt = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.UpdatedAt;
+
+        /// <summary>
         /// </summary>
         public const string Website = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Website;
+
+        /// <summary>
+        /// https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        /// </summary>
+        public const string ZoneInfo = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.ZoneInfo;
     }
 }

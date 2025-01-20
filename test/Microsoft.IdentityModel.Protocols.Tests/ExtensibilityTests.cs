@@ -1,37 +1,13 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.TestUtils;
+using Newtonsoft.Json;
 using Xunit;
-using Microsoft.IdentityModel.Json;
 
 #pragma warning disable CS3016 // Arrays as attribute arguments is not CLS-compliant
 
@@ -72,49 +48,58 @@ namespace Microsoft.IdentityModel.Protocols.Tests
 
     public class ExtensibilityTests
     {
-        [Theory, MemberData(nameof(GetMetadataTheoryData))]
-        public void GetMetadataTest(DocumentRetrieverTheoryData theoryData)
+        [Theory, MemberData(nameof(GetMetadataTheoryData), DisableDiscoveryEnumeration = true)]
+        public async Task GetMetadataTest(DocumentRetrieverTheoryData theoryData)
         {
             TestUtilities.WriteHeader($"{this}.GetMetadataTest", theoryData);
             try
             {
-                string doc = theoryData.DocumentRetriever.GetDocumentAsync(theoryData.Address, CancellationToken.None).Result;
+                string doc = await theoryData.DocumentRetriever.GetDocumentAsync(theoryData.Address, CancellationToken.None);
                 Assert.NotNull(doc);
                 theoryData.ExpectedException.ProcessNoException();
             }
-            catch (AggregateException aex)
+            catch (Exception ex)
             {
-                aex.Handle((x) =>
-                {
-                    theoryData.ExpectedException.ProcessException(x);
-                    return true;
-                });
+                theoryData.ExpectedException.ProcessException(ex);
             }
         }
 
         [Fact]
-        public void ConfigurationManagerUsingCustomClass()
+        public async Task ConfigurationManagerUsingCustomClass()
         {
             var docRetriever = new FileDocumentRetriever();
             var configManager = new ConfigurationManager<IssuerMetadata>("IssuerMetadata.json", new IssuerConfigurationRetriever(), docRetriever);
-            var context = new CompareContext($"{this}.GetConfiguration");
+            var context = new CompareContext($"{this}.ConfigurationManagerUsingCustomClass");
 
-            var configuration = configManager.GetConfigurationAsync().Result;
+            var configuration = await configManager.GetConfigurationAsync();
             configManager.MetadataAddress = "IssuerMetadata.json";
-            var configuration2 = configManager.GetConfigurationAsync().Result;
-            if (!IdentityComparer.AreEqual(configuration.Issuer, configuration2.Issuer))
+            var configuration2 = await configManager.GetConfigurationAsync();
+            if (!IdentityComparer.AreEqual(configuration.Issuer, configuration2.Issuer, context))
                 context.Diffs.Add("!IdentityComparer.AreEqual(configuration, configuration2)");
 
             // AutomaticRefreshInterval should pick up new bits.
             configManager = new ConfigurationManager<IssuerMetadata>("IssuerMetadata.json", new IssuerConfigurationRetriever(), docRetriever);
             configManager.RequestRefresh();
-            configuration = configManager.GetConfigurationAsync().Result;
-            TestUtilities.SetField(configManager, "_lastRefresh", DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
+            configuration = await configManager.GetConfigurationAsync();
+            TestUtilities.SetField(configManager, "_lastRequestRefresh", DateTime.UtcNow.Subtract(TimeSpan.FromHours(1)));
             configManager.MetadataAddress = "IssuerMetadata2.json";
-            configManager.RequestRefresh();
-            configuration2 = configManager.GetConfigurationAsync().Result;
+
+            // Wait for the refresh to complete.
+            await Task.Delay(500);
+
+            for (int i = 0; i < 5; i++)
+            {
+                configManager.RequestRefresh();
+                configuration2 = await configManager.GetConfigurationAsync();
+
+                if (IdentityComparer.AreEqual(configuration.Issuer, configuration2.Issuer))
+                    await Task.Delay(1000);
+                else
+                    break;
+            }
+
             if (IdentityComparer.AreEqual(configuration.Issuer, configuration2.Issuer))
-                context.Diffs.Add("IdentityComparer.AreEqual(configuration, configuration2)");
+                context.Diffs.Add($"Expected: {configuration.Issuer}, to be different from: {configuration2.Issuer}");
 
             TestUtilities.AssertFailIfErrors(context);
         }

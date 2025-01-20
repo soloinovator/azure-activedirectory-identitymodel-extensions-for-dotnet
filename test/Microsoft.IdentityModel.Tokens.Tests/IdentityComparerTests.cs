@@ -1,43 +1,18 @@
-﻿//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.IdentityModel.Json.Linq;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.WsFederation;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.IdentityModel.Tokens.Saml;
 using Microsoft.IdentityModel.Tokens.Saml2;
 using Microsoft.IdentityModel.Xml;
+using Newtonsoft.Json.Linq;
 using Xunit;
 using ClaimProperties = Microsoft.IdentityModel.Tokens.Saml.ClaimProperties;
 
@@ -151,7 +126,7 @@ namespace Microsoft.IdentityModel.TestUtils
             var originalRoleType = Guid.NewGuid().ToString();
             var originalBootstrapContext = Guid.NewGuid().ToString();
             var originalLabel = Guid.NewGuid().ToString();
-            var originalActor = new ClaimsIdentity(Guid.NewGuid().ToString());
+            var originalActor = new CaseSensitiveClaimsIdentity(Guid.NewGuid().ToString());
 
             // Base ClaimsIdentity to use for all future comparisons.
             var originalClaimsIdentity = CreateClaimsIdentity(originalClaims, originalAuthenticationType,
@@ -213,7 +188,7 @@ namespace Microsoft.IdentityModel.TestUtils
             string nameType, string roleType,
             string label, object bootstrapContext, ClaimsIdentity actor)
         {
-            ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, authenticationType, nameType, roleType);
+            ClaimsIdentity claimsIdentity = new CaseSensitiveClaimsIdentity(claims, authenticationType, nameType, roleType);
             claimsIdentity.Label = label;
             claimsIdentity.BootstrapContext = bootstrapContext;
             claimsIdentity.Actor = actor;
@@ -226,7 +201,7 @@ namespace Microsoft.IdentityModel.TestUtils
         {
             TestUtilities.WriteHeader($"{this}.CompareClaimsPrincipals", true);
             var context = new CompareContext($"{this}.CompareClaimsPrincipals");
-            var claimsPrincipal1 = new ClaimsPrincipal(new List<ClaimsIdentity> { new ClaimsIdentity(Guid.NewGuid().ToString()) });
+            var claimsPrincipal1 = new ClaimsPrincipal(new List<ClaimsIdentity> { new CaseSensitiveClaimsIdentity(Guid.NewGuid().ToString()) });
             var claimsPrincipal2 = new ClaimsPrincipal();
             IdentityComparer.AreEqual(claimsPrincipal1, claimsPrincipal2, context);
 
@@ -239,7 +214,7 @@ namespace Microsoft.IdentityModel.TestUtils
             TestUtilities.WriteHeader($"{this}.CompareJArrays", true);
             var context = new CompareContext($"{this}.CompareJArrays");
             var jArray1 = new JArray { Guid.NewGuid().ToString() };
-            var jArray2 = new JArray { Guid.NewGuid().ToString(), Guid.NewGuid().ToString()};
+            var jArray2 = new JArray { Guid.NewGuid().ToString(), Guid.NewGuid().ToString() };
             IdentityComparer.AreEqual(jArray1, jArray2, context);
 
             Assert.True(context.Diffs.Count(s => s == "Count:") == 1);
@@ -423,7 +398,7 @@ namespace Microsoft.IdentityModel.TestUtils
         {
             TestUtilities.WriteHeader($"{this}.CompareSamlAssertions", true);
             var context = new CompareContext($"{this}.CompareSamlAssertions");
-            var samlAssertion1 = new SamlAssertion(Guid.NewGuid().ToString(), Default.Issuer, DateTime.Parse(Default.IssueInstantString), null, new SamlAdvice(), new List<SamlStatement> { new SamlAttributeStatement(new SamlSubject(), new List<SamlAttribute> { new SamlAttribute("1", "2", "3") } )});
+            var samlAssertion1 = new SamlAssertion(Guid.NewGuid().ToString(), Default.Issuer, DateTime.Parse(Default.IssueInstantString), null, new SamlAdvice(), new List<SamlStatement> { new SamlAttributeStatement(new SamlSubject(), new List<SamlAttribute> { new SamlAttribute("1", "2", "3") }) });
             var samlAssertion2 = new SamlAssertion(Guid.NewGuid().ToString(), Default.Issuer, DateTime.Parse(Default.IssueInstantString), null, new SamlAdvice(), new List<SamlStatement> { new SamlAttributeStatement(new SamlSubject(), new List<SamlAttribute> { new SamlAttribute("1", "2", "3") }) });
             IdentityComparer.AreEqual(samlAssertion1, samlAssertion2, context);
 
@@ -504,10 +479,10 @@ namespace Microsoft.IdentityModel.TestUtils
             var context = new CompareContext($"{this}.CompareSamlAuthorizationDecisionStatements");
             var samlAction = new SamlAction(Guid.NewGuid().ToString());
             var samlAttributeStatement1 =
-                new SamlAuthorizationDecisionStatement(new SamlSubject(), 
+                new SamlAuthorizationDecisionStatement(new SamlSubject(),
                     Guid.NewGuid().ToString(), Default.SamlAccessDecision, new List<SamlAction> { samlAction });
             var samlAttributeStatement2 =
-                new SamlAuthorizationDecisionStatement(new SamlSubject(), 
+                new SamlAuthorizationDecisionStatement(new SamlSubject(),
                     Guid.NewGuid().ToString(), Default.SamlAccessDecision, new List<SamlAction> { samlAction });
             IdentityComparer.AreEqual(samlAttributeStatement1, samlAttributeStatement2, context);
 
@@ -527,7 +502,7 @@ namespace Microsoft.IdentityModel.TestUtils
                         new SamlAttributeStatement(new SamlSubject(),
                             new List<SamlAttribute> {new SamlAttribute("1", "2", "3")})
                     }));
-            var samlSecurityToken2 = 
+            var samlSecurityToken2 =
                 new SamlSecurityToken(new SamlAssertion(Guid.NewGuid().ToString(), Default.Issuer,
                     DateTime.Parse(Default.IssueInstantString), null, new SamlAdvice(),
                     new List<SamlStatement>
@@ -559,8 +534,8 @@ namespace Microsoft.IdentityModel.TestUtils
         {
             TestUtilities.WriteHeader($"{this}.CompareSignatures", true);
             var context = new CompareContext($"{this}.CompareSignatures");
-            var signature1 = new Signature {SignatureValue = Guid.NewGuid().ToString() };
-            var signature2 = new Signature {SignatureValue = Guid.NewGuid().ToString()};
+            var signature1 = new Signature { SignatureValue = Guid.NewGuid().ToString() };
+            var signature2 = new Signature { SignatureValue = Guid.NewGuid().ToString() };
             IdentityComparer.AreEqual(signature1, signature2, context);
 
             Assert.True(context.Diffs.Count(s => s == "SignatureValue:") == 1);
@@ -599,9 +574,19 @@ namespace Microsoft.IdentityModel.TestUtils
             var string2 = "goodbye";
             IdentityComparer.AreEqual(string1, string2, context);
 
-            Assert.True(context.Diffs.Count(s => s == $"'{string1}'") == 1);
-            Assert.True(context.Diffs.Count(s => s == "!=") == 1);
-            Assert.True(context.Diffs.Count(s => s == $"'{string2}'") == 1);
+            Assert.True(context.Diffs.Count(s => s == "'str1' != 'str2', StringComparison: 'Ordinal'") == 1);
+            Assert.True(context.Diffs[1] == $"'{string1}'");
+            Assert.True(context.Diffs[3] == $"'{string2}'");
+        }
+
+        [Fact]
+        public void CompareStringsWithTimestamps()
+        {
+            TestUtilities.WriteHeader($"{this}.{nameof(CompareStringsWithTimestamps)}", true);
+            var context = new CompareContext($"{this}.{nameof(CompareStringsWithTimestamps)}");
+            DateTime now = DateTime.UtcNow;
+            IdentityComparer.AreEqual($"{now:HH:mm:ss} {now.AddSeconds(1):HH:mm:ss}", $"{now.AddSeconds(1):HH:mm:ss} {now:HH:mm:ss}", context);
+            Assert.Empty(context.Diffs);
         }
 
         [Fact]
@@ -623,9 +608,9 @@ namespace Microsoft.IdentityModel.TestUtils
             TestUtilities.WriteHeader($"{this}.CompareTokenValidationParameters", true);
             var context = new CompareContext($"{this}.CompareTokenValidationParameters");
             var tokenValidationParameters1 =
-                new TokenValidationParameters {AuthenticationType = Guid.NewGuid().ToString()};
+                new TokenValidationParameters { AuthenticationType = Guid.NewGuid().ToString() };
             var tokenValidationParameters2 =
-                new TokenValidationParameters() {AuthenticationType = Guid.NewGuid().ToString()};
+                new TokenValidationParameters() { AuthenticationType = Guid.NewGuid().ToString() };
             IdentityComparer.AreEqual(tokenValidationParameters1, tokenValidationParameters2, context);
 
             Assert.True(context.Diffs.Count(s => s == "AuthenticationType:") == 1);
@@ -661,8 +646,8 @@ namespace Microsoft.IdentityModel.TestUtils
             TestUtilities.WriteHeader($"{this}.CompareX509Certificate2", true);
 
             var context = new CompareContext($"{this}.CompareX509Certificate2");
-            var certificate = new X509Certificate2(Convert.FromBase64String(KeyingMaterial.DefaultX509Data_2048_Public));
-            var certificateSame = new X509Certificate2(Convert.FromBase64String(KeyingMaterial.DefaultX509Data_2048_Public));
+            var certificate = CertificateHelper.LoadX509Certificate(KeyingMaterial.DefaultX509Data_2048_Public);
+            var certificateSame = CertificateHelper.LoadX509Certificate(KeyingMaterial.DefaultX509Data_2048_Public);
             var certificateDifferent = KeyingMaterial.CertSelfSigned1024_SHA256;
 
             IdentityComparer.AreEqual(certificate, certificateSame, context);
@@ -673,11 +658,11 @@ namespace Microsoft.IdentityModel.TestUtils
 
             context.Diffs.Clear();
             IdentityComparer.AreX509Certificate2Equal(certificate, null, context);
-            Assert.True(context.Diffs.Count(s => s == "X509Certificate2:") == 1);
+            Assert.True(context.Diffs.Count(s => s.Contains("X509Certificate2:")) == 1);
 
             context.Diffs.Clear();
             IdentityComparer.AreX509Certificate2Equal(null, certificate, context);
-            Assert.True(context.Diffs.Count(s => s == "X509Certificate2:") == 1);
+            Assert.True(context.Diffs.Count(s => s.Contains("X509Certificate2:")) == 1);
         }
     }
 }

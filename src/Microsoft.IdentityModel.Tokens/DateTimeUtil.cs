@@ -1,47 +1,23 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 
 namespace Microsoft.IdentityModel.Tokens
 {
     /// <summary>
-    /// Helper class for adding DateTimes and Timespans.
+    /// Utility class for performing operations involving <see cref="DateTime"/> and <see cref="TimeSpan"/>.
     /// </summary>
     public static class DateTimeUtil
     {
         /// <summary>
-        /// Add a DateTime and a TimeSpan.
-        /// The maximum time is DateTime.MaxTime.  It is not an error if time + timespan > MaxTime.
-        /// Just return MaxTime.
+        /// Adds a <see cref="DateTime"/> and a <see cref="TimeSpan"/>.
+        /// If the resulting value exceeds <see cref="DateTime.MaxValue"/>, returns <see cref="DateTime.MaxValue"/>.
+        /// If the resulting value is less than <see cref="DateTime.MinValue"/>, returns <see cref="DateTime.MinValue"/>.
         /// </summary>
         /// <param name="time">Initial <see cref="DateTime"/> value.</param>
         /// <param name="timespan"><see cref="TimeSpan"/> to add.</param>
-        /// <returns><see cref="DateTime"/> as the sum of time and timespan.</returns>
+        /// <returns>The sum of <paramref name="time"/> and <paramref name="timespan"/>, or <see cref="DateTime.MaxValue"/> if the sum exceeds it, or <see cref="DateTime.MinValue"/> if the sum is less than it.</returns>
         public static DateTime Add(DateTime time, TimeSpan timespan)
         {
             if (timespan == TimeSpan.Zero)
@@ -63,10 +39,10 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Gets the Maximum value for a DateTime specifying kind.
+        /// Gets the maximum value for a <see cref="DateTime"/> with the specified <see cref="DateTimeKind"/>.
         /// </summary>
-        /// <param name="kind">DateTimeKind to use.</param>
-        /// <returns>DateTime of specified kind.</returns>
+        /// <param name="kind">The <see cref="DateTimeKind"/>.</param>
+        /// <returns>The maximum <see cref="DateTime"/> value of the specified kind.</returns>
         public static DateTime GetMaxValue(DateTimeKind kind)
         {
             if (kind == DateTimeKind.Unspecified)
@@ -76,10 +52,10 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Gets the Minimum value for a DateTime specifying kind.
+        /// Gets the minimum value for a <see cref="DateTime"/> with the specified <see cref="DateTimeKind"/>.
         /// </summary>
-        /// <param name="kind">DateTimeKind to use.</param>
-        /// <returns>DateTime of specified kind.</returns>
+        /// <param name="kind">The <see cref="DateTimeKind"/>.</param>
+        /// <returns>The minimum <see cref="DateTime"/> value of the specified kind.</returns>
         public static DateTime GetMinValue(DateTimeKind kind)
         {
             if (kind == DateTimeKind.Unspecified)
@@ -89,10 +65,10 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Ensures that DataTime is UTC.
+        /// Converts the specified <see cref="DateTime"/> to UTC if it is not already in UTC.
         /// </summary>
-        /// <param name="value"><see cref="DateTime"/>to convert.</param>
-        /// <returns></returns>
+        /// <param name="value">The <see cref="DateTime"/> to convert.</param>
+        /// <returns>The converted <see cref="DateTime"/> in UTC, or null if <paramref name="value"/> is null.</returns>
         public static DateTime? ToUniversalTime(DateTime? value)
         {
             if (value == null || value.Value.Kind == DateTimeKind.Utc)
@@ -102,13 +78,12 @@ namespace Microsoft.IdentityModel.Tokens
         }
 
         /// <summary>
-        /// Ensures that DateTime is UTC.
+        /// Converts the specified <see cref="DateTime"/> to UTC if it is not already in UTC.
         /// </summary>
-        /// <param name="value"><see cref="DateTime"/>to convert.</param>
-        /// <returns></returns>
+        /// <param name="value">The <see cref="DateTime"/> to convert.</param>
+        /// <returns>The converted <see cref="DateTime"/> in UTC.</returns>
         public static DateTime ToUniversalTime(DateTime value)
         {
-
             if (value.Kind == DateTimeKind.Utc)
                 return value;
 

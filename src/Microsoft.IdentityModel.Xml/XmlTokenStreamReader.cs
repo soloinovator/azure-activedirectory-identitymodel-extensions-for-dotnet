@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Xml;
@@ -38,7 +14,7 @@ namespace Microsoft.IdentityModel.Xml
     {
         private int _depth;
         private bool _recordDone;
-        private XmlTokenStreamReader _innerTokenStreamReader = null;
+        private XmlTokenStreamReader _innerTokenStreamReader;
 
         /// <summary>
         /// Initializes a new instance of <see cref="XmlTokenStreamReader"/> for creating a <see cref="XmlTokenStream"/>.
@@ -126,34 +102,34 @@ namespace Microsoft.IdentityModel.Xml
             switch (InnerReader.NodeType)
             {
                 case XmlNodeType.Element:
-                {
-                    bool isEmpty = InnerReader.IsEmptyElement;
-                    if (recordSignaturePosition && InnerReader.IsLocalName(XmlSignatureConstants.Elements.Signature) && InnerReader.IsNamespaceUri(XmlSignatureConstants.Namespace))
-                        TokenStream.SignatureElement = TokenStream.XmlTokens.Count;
-
-                    TokenStream.AddElement(InnerReader.Prefix, InnerReader.LocalName, InnerReader.NamespaceURI, isEmpty);
-
-                    if (InnerReader.MoveToFirstAttribute())
                     {
-                        do
+                        bool isEmpty = InnerReader.IsEmptyElement;
+                        if (recordSignaturePosition && InnerReader.IsLocalName(XmlSignatureConstants.Elements.Signature) && InnerReader.IsNamespaceUri(XmlSignatureConstants.Namespace))
+                            TokenStream.SignatureElement = TokenStream.XmlTokens.Count;
+
+                        TokenStream.AddElement(InnerReader.Prefix, InnerReader.LocalName, InnerReader.NamespaceURI, isEmpty);
+
+                        if (InnerReader.MoveToFirstAttribute())
                         {
-                            TokenStream.AddAttribute(InnerReader.Prefix, InnerReader.LocalName, InnerReader.NamespaceURI, InnerReader.Value);
-                        }
-                        while (InnerReader.MoveToNextAttribute());
+                            do
+                            {
+                                TokenStream.AddAttribute(InnerReader.Prefix, InnerReader.LocalName, InnerReader.NamespaceURI, InnerReader.Value);
+                            }
+                            while (InnerReader.MoveToNextAttribute());
                             InnerReader.MoveToElement();
-                    }
+                        }
 
-                    if (!isEmpty)
-                    {
-                        _depth++;
-                    }
-                    else if (_depth == 0)
-                    {
-                        _recordDone = true;
-                    }
+                        if (!isEmpty)
+                        {
+                            _depth++;
+                        }
+                        else if (_depth == 0)
+                        {
+                            _recordDone = true;
+                        }
 
-                    break;
-                }
+                        break;
+                    }
                 case XmlNodeType.CDATA:
                 case XmlNodeType.Comment:
                 case XmlNodeType.Text:
@@ -161,27 +137,27 @@ namespace Microsoft.IdentityModel.Xml
                 case XmlNodeType.EndEntity:
                 case XmlNodeType.SignificantWhitespace:
                 case XmlNodeType.Whitespace:
-                {
-                    TokenStream.Add(InnerReader.NodeType, InnerReader.Value);
-                    break;
-                }
+                    {
+                        TokenStream.Add(InnerReader.NodeType, InnerReader.Value);
+                        break;
+                    }
                 case XmlNodeType.EndElement:
-                {
-                    TokenStream.Add(InnerReader.NodeType, InnerReader.Value);
-                    if (--_depth == 0)
-                        _recordDone = true;
+                    {
+                        TokenStream.Add(InnerReader.NodeType, InnerReader.Value);
+                        if (--_depth == 0)
+                            _recordDone = true;
 
-                    break;
-                }
+                        break;
+                    }
                 case XmlNodeType.DocumentType:
                 case XmlNodeType.XmlDeclaration:
-                { 
-                    break;
-                }
+                    {
+                        break;
+                    }
                 default:
-                {
-                    throw LogExceptionMessage(new XmlException(FormatInvariant(LogMessages.IDX30406, MarkAsNonPII(InnerReader.NodeType))));
-                }
+                    {
+                        throw LogExceptionMessage(new XmlException(FormatInvariant(LogMessages.IDX30406, MarkAsNonPII(InnerReader.NodeType))));
+                    }
             }
         }
     }

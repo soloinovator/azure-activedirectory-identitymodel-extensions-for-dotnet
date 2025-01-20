@@ -1,36 +1,15 @@
 ﻿
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System.Security.Claims;
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.IdentityModel.Xml;
 using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.IdentityModel.Logging;
 using TokenLogMessages = Microsoft.IdentityModel.Tokens.LogMessages;
 
@@ -45,7 +24,7 @@ namespace Microsoft.IdentityModel.Tokens.Saml
         /// Returns a <see cref="SecurityKey"/> to use when validating the signature of a token.
         /// </summary>
         /// <param name="tokenKeyInfo">The <see cref="KeyInfo"/> field of the token being validated</param>
-        /// <param name="validationParameters">A <see cref="TokenValidationParameters"/> required for validation.</param>
+        /// <param name="validationParameters">The <see cref="TokenValidationParameters"/> to be used for validating the token.</param>
         /// <returns>Returns a <see cref="SecurityKey"/> to use for signature validation.</returns>
         /// <remarks>If key fails to resolve, then null is returned</remarks>
         internal static SecurityKey ResolveTokenSigningKey(KeyInfo tokenKeyInfo, TokenValidationParameters validationParameters)
@@ -69,42 +48,27 @@ namespace Microsoft.IdentityModel.Tokens.Saml
         }
 
         /// <summary>
-        /// Returns all <see cref="SecurityKey"/> to use when validating the signature of a token.
+        /// Returns a <see cref="SecurityKey"/> to use when validating the signature of a token.
         /// </summary>
-        /// <param name="token">The <see cref="string"/> representation of the token that is being validated.</param>
-        /// <param name="samlToken">The <see cref="SecurityToken"/> that is being validated.</param>
         /// <param name="tokenKeyInfo">The <see cref="KeyInfo"/> field of the token being validated</param>
-        /// <param name="validationParameters">A <see cref="TokenValidationParameters"/> required for validation.</param>
-        /// <param name="keyMatched">A <see cref="bool"/> to represent if a a issuer signing key matched with token kid or x5t</param>
-        /// <returns>Returns all <see cref="SecurityKey"/> to use for signature validation.</returns>
-        internal static IEnumerable<SecurityKey> GetKeysForTokenSignatureValidation(string token, SecurityToken samlToken, KeyInfo tokenKeyInfo, TokenValidationParameters validationParameters, out bool keyMatched)
+        /// <param name="validationParameters">The <see cref="ValidationParameters"/> to be used for validating the token.</param>
+        /// <returns>Returns a <see cref="SecurityKey"/> to use for signature validation.</returns>
+        /// <remarks>If key fails to resolve, then null is returned</remarks>
+        internal static SecurityKey ResolveTokenSigningKey(KeyInfo tokenKeyInfo, ValidationParameters validationParameters)
         {
-            keyMatched = false;
+            if (tokenKeyInfo is null || validationParameters.IssuerSigningKeys is null)
+                return null;
 
-            if (validationParameters.IssuerSigningKeyResolver != null)
+            for (int i = 0; i < validationParameters.IssuerSigningKeys.Count; i++)
             {
-                return validationParameters.IssuerSigningKeyResolver(token, samlToken, tokenKeyInfo?.Id, validationParameters);
+                if (tokenKeyInfo.MatchesKey(validationParameters.IssuerSigningKeys[i]))
+                    return validationParameters.IssuerSigningKeys[i];
             }
-            else
-            {
-                SecurityKey key = ResolveTokenSigningKey(tokenKeyInfo, validationParameters);
 
-                if (key != null)
-                {
-                    keyMatched = true;
-                    return new List<SecurityKey> { key };
-                }
-                else
-                {
-                    keyMatched = false;
-                    if (validationParameters.TryAllIssuerSigningKeys)
-                    {
-                        return TokenUtilities.GetAllSigningKeys(validationParameters);
-                    }
-                }
-            }
             return null;
         }
+
+
 
         /// <summary>
         /// Creates <see cref="Claim"/>'s from <paramref name="claimsCollection"/>.
@@ -188,6 +152,59 @@ namespace Microsoft.IdentityModel.Tokens.Saml
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Fetches current configuration from the ConfigurationManager of <paramref name="validationParameters"/>
+        /// and populates ValidIssuers and IssuerSigningKeys.
+        /// </summary>
+        /// <param name="validationParameters"> the token validation parameters to update.</param>
+        /// <returns> New TokenValidationParameters with ValidIssuers and IssuerSigningKeys updated.</returns>
+        internal static async Task<TokenValidationParameters> PopulateValidationParametersWithCurrentConfigurationAsync(
+            TokenValidationParameters validationParameters)
+        {
+            if (validationParameters.ConfigurationManager == null)
+            {
+                return validationParameters;
+            }
+
+            var currentConfiguration = await validationParameters.ConfigurationManager.GetBaseConfigurationAsync(CancellationToken.None).ConfigureAwait(false);
+            var validationParametersCloned = validationParameters.Clone();
+            var issuers = new[] { currentConfiguration.Issuer };
+
+            validationParametersCloned.ValidIssuers = (validationParametersCloned.ValidIssuers == null ? issuers : validationParametersCloned.ValidIssuers.Concat(issuers));
+            validationParametersCloned.IssuerSigningKeys = (validationParametersCloned.IssuerSigningKeys == null ? currentConfiguration.SigningKeys : validationParametersCloned.IssuerSigningKeys.Concat(currentConfiguration.SigningKeys));
+            return validationParametersCloned;
+
+        }
+
+        /// <summary>
+        /// Fetches current configuration from the ConfigurationManager of <paramref name="validationParameters"/>
+        /// and populates ValidIssuers and IssuerSigningKeys.
+        /// </summary>
+        /// <param name="validationParameters"> the token validation parameters to update.</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns> New ValidationParameters with ValidIssuers and IssuerSigningKeys updated.</returns>
+        internal static async Task<ValidationParameters> PopulateValidationParametersWithCurrentConfigurationAsync(
+            ValidationParameters validationParameters,
+            CancellationToken cancellationToken)
+        {
+            if (validationParameters.ConfigurationManager == null)
+            {
+                return validationParameters;
+            }
+
+            var currentConfiguration = await validationParameters.ConfigurationManager.GetBaseConfigurationAsync(cancellationToken).ConfigureAwait(false);
+            var validationParametersCloned = validationParameters.Clone();
+
+            validationParametersCloned.ValidIssuers.Add(currentConfiguration.Issuer);
+
+            foreach (SecurityKey key in currentConfiguration.SigningKeys)
+            {
+                validationParametersCloned.IssuerSigningKeys.Add(key);
+            }
+
+            return validationParametersCloned;
         }
     }
 }

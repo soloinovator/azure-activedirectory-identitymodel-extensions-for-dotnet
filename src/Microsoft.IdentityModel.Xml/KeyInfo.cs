@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -79,7 +55,7 @@ namespace Microsoft.IdentityModel.Xml
                 // Obtain parameters from the RSA if the rsaKey does not contain a valid value for RSAParameters
                 if (rsaKey.Parameters.Equals(default(RSAParameters)))
                     rsaParameters = rsaKey.Rsa.ExportParameters(false);
-        
+
                 RSAKeyValue = new RSAKeyValue(Convert.ToBase64String(rsaParameters.Modulus), Convert.ToBase64String(rsaParameters.Exponent));
             }
         }
@@ -170,7 +146,7 @@ namespace Microsoft.IdentityModel.Xml
                 foreach (var certificate in data.Certificates)
                 {
                     // depending on the target, X509Certificate2 may be disposable
-                    var cert = new X509Certificate2(Convert.FromBase64String(certificate));
+                    X509Certificate2 cert = CertificateHelper.LoadX509Certificate(certificate);
                     try
                     {
                         if (cert.Equals(key.Certificate))
@@ -221,14 +197,14 @@ namespace Microsoft.IdentityModel.Xml
             foreach (var x5c in key.X5c)
             {
                 // depending on the target, X509Certificate2 may be disposable
-                var certToMatch = new X509Certificate2(Convert.FromBase64String(x5c));
+                X509Certificate2 certToMatch = CertificateHelper.LoadX509Certificate(x5c);
                 try
                 {
                     foreach (var data in X509Data)
                     {
                         foreach (var certificate in data.Certificates)
                         {
-                            var cert = new X509Certificate2(Convert.FromBase64String(certificate));
+                            X509Certificate2 cert = CertificateHelper.LoadX509Certificate(certificate);
                             try
                             {
                                 if (cert.Equals(certToMatch))

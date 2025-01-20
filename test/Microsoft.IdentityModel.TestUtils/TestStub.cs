@@ -1,8 +1,5 @@
-//-------------------------------------------------------------------------------------------------
-// <copyright file="TestStub.cs" company="Microsoft">
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
-// </copyright>
-//-------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using Xunit;
@@ -16,7 +13,7 @@ namespace Microsoft.IdentityModel.TestUtils
     /// </summary>
     public class TestStubTests
     {
-        [Theory, MemberData(nameof(TestStubTheoryData))]
+        [Theory, MemberData(nameof(TestStubTheoryData), DisableDiscoveryEnumeration = true)]
         public void TestStubTest1(TestStubTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.TestStubTest1", theoryData);
@@ -46,7 +43,7 @@ namespace Microsoft.IdentityModel.TestUtils
                     new TestStubTheoryData
                     {
                         First = true,
-                        TestId = "TestStub1"                        
+                        TestId = "TestStub1"
                     }
                 };
             }

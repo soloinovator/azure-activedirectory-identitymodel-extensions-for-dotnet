@@ -1,29 +1,5 @@
-//------------------------------------------------------------------------------
-//
-// Copyright (c) Microsoft Corporation.
-// All rights reserved.
-//
-// This code is licensed under the MIT License.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-//------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
@@ -42,7 +18,7 @@ namespace Microsoft.IdentityModel.Tokens.Xml.Tests
 {
     public class EnvelopedSignatureWriterTests
     {
-        [Theory, MemberData(nameof(ConstructorTestCases))]
+        [Theory, MemberData(nameof(ConstructorTestCases), DisableDiscoveryEnumeration = true)]
         public void Constructor(EnvelopedSignatureTheoryData theoryData)
         {
             TestUtilities.WriteHeader($"{this}.Constructor", theoryData);
@@ -84,7 +60,7 @@ namespace Microsoft.IdentityModel.Tokens.Xml.Tests
             }
         }
 
-        [Theory, MemberData(nameof(CreateSignatureWithoutSpecifyingDigestTestCases))]
+        [Theory, MemberData(nameof(CreateSignatureWithoutSpecifyingDigestTestCases), DisableDiscoveryEnumeration = true)]
         public void CreateSignatureWithoutSpecifyingDigest(EnvelopedSignatureTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.CreateSignatureWithoutSpecifyingDigest", theoryData);
@@ -100,7 +76,7 @@ namespace Microsoft.IdentityModel.Tokens.Xml.Tests
 
                     // read and verify signatures
                     EnvelopedSignatureReader envelopedReader = new EnvelopedSignatureReader(XmlUtilities.CreateDictionaryReader(Encoding.UTF8.GetString(buffer.ToArray())));
-                    while (envelopedReader.Read());
+                    while (envelopedReader.Read()) ;
 
                     envelopedReader.Signature.Verify(theoryData.SigningCredentials.Key, theoryData.SigningCredentials.Key.CryptoProviderFactory);
                     theoryData.ExpectedException.ProcessNoException(context);
@@ -137,12 +113,12 @@ namespace Microsoft.IdentityModel.Tokens.Xml.Tests
                 theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSha512Signature, null, SecurityAlgorithms.RsaSha512Signature + "_DigestNULL"));
 
 #if NET_CORE
-               theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha256, null, SecurityAlgorithms.RsaSsaPssSha256 + "_DigestNULL"));
-               theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha256Signature, null, SecurityAlgorithms.RsaSsaPssSha256Signature + "_DigestNULL"));
-               theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha384, null, SecurityAlgorithms.RsaSsaPssSha384 + "_DigestNULL"));
-               theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha384Signature, null, SecurityAlgorithms.RsaSsaPssSha384Signature + "_DigestNULL"));
-               theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha512, null, SecurityAlgorithms.RsaSsaPssSha512 + "_DigestNULL"));
-               theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha512Signature, null, SecurityAlgorithms.RsaSsaPssSha512Signature + "_DigestNULL"));
+                theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha256, null, SecurityAlgorithms.RsaSsaPssSha256 + "_DigestNULL"));
+                theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha256Signature, null, SecurityAlgorithms.RsaSsaPssSha256Signature + "_DigestNULL"));
+                theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha384, null, SecurityAlgorithms.RsaSsaPssSha384 + "_DigestNULL"));
+                theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha384Signature, null, SecurityAlgorithms.RsaSsaPssSha384Signature + "_DigestNULL"));
+                theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha512, null, SecurityAlgorithms.RsaSsaPssSha512 + "_DigestNULL"));
+                theoryData.Add(CreateSignatureTestCase(KeyingMaterial.RsaSecurityKey_2048, SecurityAlgorithms.RsaSsaPssSha512Signature, null, SecurityAlgorithms.RsaSsaPssSha512Signature + "_DigestNULL"));
 #endif
 
                 // Symmetric
@@ -173,7 +149,7 @@ namespace Microsoft.IdentityModel.Tokens.Xml.Tests
             };
         }
 
-        [Theory, MemberData(nameof(RoundTripSaml2TestCases))]
+        [Theory, MemberData(nameof(RoundTripSaml2TestCases), DisableDiscoveryEnumeration = true)]
         public void RoundTripSaml2(EnvelopedSignatureTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.RoundTripSaml2", theoryData);
@@ -226,7 +202,7 @@ namespace Microsoft.IdentityModel.Tokens.Xml.Tests
             }
         }
 
-        [Theory, MemberData(nameof(RoundTripWsMetadataTestCases))]
+        [Theory, MemberData(nameof(RoundTripWsMetadataTestCases), DisableDiscoveryEnumeration = true)]
         public void RoundTripWsMetadata(EnvelopedSignatureTheoryData theoryData)
         {
             var context = TestUtilities.WriteHeader($"{this}.RoundTripWsMetadata", theoryData);
